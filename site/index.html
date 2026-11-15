@@ -69,7 +69,7 @@ body::after { content: ""; position: fixed; inset: 0; z-index: 30; pointer-event
 
 .view { display: none; padding-top: 28px; gap: 22px; }
 .view.on { display: grid; animation: rise .45s cubic-bezier(.2, .7, .2, 1); }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { transform: translateY(10px); } to { transform: none; } }
 
 /* Banner */
 .banner { position: relative; overflow: hidden; border-radius: 24px; border: 1px solid var(--line-2); padding: clamp(22px, 3.5vw, 36px); display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; align-items: center;
@@ -285,7 +285,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 .stretch { align-self: stretch; }
 .view.on .bento > * { animation: cardIn .55s cubic-bezier(.2,.7,.2,1) both; }
 .view.on .bento > *:nth-child(2) { animation-delay: .05s; } .view.on .bento > *:nth-child(3) { animation-delay: .1s; } .view.on .bento > *:nth-child(4) { animation-delay: .15s; } .view.on .bento > *:nth-child(5) { animation-delay: .2s; } .view.on .bento > *:nth-child(n+6) { animation-delay: .25s; }
-@keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes cardIn { from { transform: translateY(14px) scale(.985); } to { transform: none; } }
 .bento > .groups { columns: 3 300px; }
 
 /* ===== Banner upgrades: giant outlined backdrop word + claw marks ===== */
