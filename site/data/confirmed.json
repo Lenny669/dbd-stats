@@ -1,0 +1,4 @@
+{
+  "note": "Matches whose end time was not measured precisely but which you confirmed were a single match. Key = the match's end time (t1).",
+  "single": ["2026-11-15T00:40:41.108Z", "2026-11-15T01:31:02.273Z"]
+}

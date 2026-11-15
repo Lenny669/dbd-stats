@@ -248,9 +248,10 @@ footer a { color: var(--fog); }
     try { const r = await fetch(RAW + name + bust, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (_) {}
     return fetch('data/' + name + bust).then(r => r.json());
   };
-  let SNAP, SESS;
+  let SNAP, SESS, CONFIRMED = new Set();
   try {
     [SNAP, SESS] = await Promise.all([load('snap.json'), load('sessions.json')]);
+    try { CONFIRMED = new Set(((await load('confirmed.json')) || {}).single || []); } catch (_) {}
   } catch (e) {
     document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty" style="margin-top:28px">Could not load the stats data. Try reloading the page.</div>');
     return;
@@ -284,6 +285,7 @@ footer a { color: var(--fog); }
     else if (m.on) start = ms(m.on);
     m.len = m.done && m.fine && start != null ? Math.round((ms(m.t1) - start) / 60000) : null;
     m.fine = m.fine && m.done;
+    m.single = m.fine || (m.done && CONFIRMED.has(m.t1)); // counts towards kill / escape rate
   });
   SESS = matches.filter(m => !m.live || m.parts);
   const S = SNAP.s;
@@ -368,8 +370,8 @@ footer a { color: var(--fog); }
   }
 
   // Kill rate / escape rate from single tracked matches (minute-precise readings only)
-  const kMatches = SESS.filter(w => { const c = classify(w); return w.fine && c.asK && !c.asS && c.killers.length <= 1; });
-  const sMatches = SESS.filter(w => { const c = classify(w); return w.fine && c.asS && !c.asK; });
+  const kMatches = SESS.filter(w => { const c = classify(w); return w.single && c.asK && !c.asS && c.killers.length <= 1; });
+  const sMatches = SESS.filter(w => { const c = classify(w); return w.single && c.asS && !c.asK; });
   const rates = list => {
     const recent = list.filter(w => ms(w.t1) >= cutoff);
     return { all: list, recent };
@@ -421,7 +423,7 @@ footer a { color: var(--fog); }
     t.append(tb); host.append(t);
   }
   const tdText = (cls, text) => el('td', cls, text);
-  const colWhen = { h: 'Ended', td: w => { const td = el('td'); if (w.live) { td.append(el('span', 'live', 'In progress')); return td; } td.textContent = w.fine ? when(w.t1) : `${when(w.t0)} – ${hhmm(w.t1)}`; if (!w.fine) td.title = 'Not timed precisely, may hold more than one match'; return td; } };
+  const colWhen = { h: 'Ended', td: w => { const td = el('td'); if (w.live) { td.append(el('span', 'live', 'In progress')); return td; } td.textContent = w.fine ? when(w.t1) : `${when(w.t0)} – ${hhmm(w.t1)}`; if (!w.fine) td.title = w.single ? 'Confirmed single match (end time not precise)' : 'Not timed precisely, may hold more than one match'; return td; } };
   const colPlayed = { h: 'Length', r: 1, td: w => tdText('r num', w.live ? 'so far ' + Math.round((Date.now() - ms(w.t0)) / 60000) + ' min' : w.len != null ? '~' + w.len + ' min' : '—') };
 
   // OVERVIEW
@@ -504,7 +506,7 @@ footer a { color: var(--fog); }
   const per = {};
   for (const w of SESS) {
     const c = classify(w);
-    if (c.killers.length !== 1 || c.asS) continue;
+    if (!w.single || c.killers.length !== 1 || c.asS) continue;
     const k = c.killers[0], p = POWERS.find(x => x[1] === k);
     per[k] = per[k] || { n: 0, lenSum: 0, lenN: 0, kills: 0, power: 0 };
     per[k].n++; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0;
@@ -527,7 +529,7 @@ footer a { color: var(--fog); }
 
   // SURVIVOR
   tiles('s-tiles', [
-    ['Escape rate', pctOr(escRate(sMatches)), sMatches.length ? `${fmt(sMatches.filter(w => (w.d.Escape || 0) > 0).length)} escapes in ${fmt(sMatches.length)} tracked match${sMatches.length === 1 ? '' : 'es'}` : 'appears after your first tracked survivor match', 'var(--surv)', ''],
+    ['Escape rate', pctOr(escRate(sMatches)), sMatches.length ? `${(n => fmt(n) + ' escape' + (n === 1 ? '' : 's'))(sMatches.filter(w => (w.d.Escape || 0) > 0).length)} in ${fmt(sMatches.length)} tracked match${sMatches.length === 1 ? '' : 'es'}` : 'appears after your first tracked survivor match', 'var(--surv)', ''],
     ['Escapes', fmt(S.Escape), `${fmt(S.EscapeThroughHatch)} through the hatch`, 'var(--surv)', d30.Escape ? fmt(d30.Escape) : ''],
     ['Generators', fmt(S.GeneratorPct_float), 'repaired in full', 'var(--surv)', d30.GeneratorPct_float ? fmt(d30.GeneratorPct_float, 1) : ''],
     ['Heals', fmt(S.HealPct_float), `${fmt(S.UnhookOrHeal)} unhooks and saves`, 'var(--surv)', d30.HealPct_float ? fmt(d30.HealPct_float, 1) : ''],
