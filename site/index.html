@@ -89,7 +89,7 @@ body::after { content: ""; position: fixed; inset: 0; z-index: 30; pointer-event
 a.gauge:hover { transform: translateY(-3px); border-color: var(--gc); }
 .gauge::after { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--gc), transparent); }
 .gauge .lbl { font: 700 13px var(--cond); letter-spacing: .18em; text-transform: uppercase; color: var(--gc); }
-.gauge .val { font: 900 clamp(44px, 5vw, 58px)/.9 var(--display); letter-spacing: .01em; }
+.gauge .val { font: 900 clamp(32px, 3.4vw, 56px)/.9 var(--display); white-space: nowrap; letter-spacing: .01em; }
 .gauge .val small { font-size: .42em; color: var(--muted); font-weight: 700; margin-left: 4px; }
 .gauge .val.none { color: #4a4f5c; }
 .gauge .sub { color: var(--muted); font-size: 12.5px; }
