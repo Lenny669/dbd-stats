@@ -45,6 +45,8 @@ function commitAndPush(message) {
   }
 }
 
+let lastPoll = null; // time of the previous successful reading in this run
+
 async function readOnce() {
   const [st, og, ps] = await Promise.all([
     get(`/ISteamUserStats/GetUserStatsForGame/v2/?appid=381210&key=${KEY}&steamid=${SID}`),
@@ -77,26 +79,24 @@ async function readOnce() {
       if (v > 0) d[k] = v;
     }
     const dpt = Math.max(0, snap.pt - (prev.pt ?? 0));
-    if (Object.keys(d).length) session = { t0: prev.t, t1: now, pt: dpt, on: prev.on || on || null, d };
+    // tp = previous poll, so the page knows how precisely the change was timed
+    if (Object.keys(d).length) session = { t0: prev.t, t1: now, tp: lastPoll, pt: dpt, on: prev.on || on || null, d };
   }
 
   // Playtime alone ticking up is not a match: keep it in the snapshot only.
   const statusChanged = !prev || prev.ingame !== ingame || prev.name !== snap.name;
-  if (!session && !statusChanged) {
-    // carry the unsaved playtime forward without writing a file
-    return false;
-  }
+  lastPoll = now;
+  if (!session && !statusChanged) return false;
   await mkdir(DIR, { recursive: true });
   if (session) {
-    // keep playtime that accumulated while nothing else changed
     sessions.push(session);
     await writeFile(`${DIR}/sessions.json`, JSON.stringify(sessions) + '\n');
-    console.log(now, 'match data:', Object.keys(session.d).length, 'counters changed');
+    console.log(now, session.d.BloodwebPoints ? 'match ended' : 'mid-match update', Object.keys(session.d).length, 'counters changed');
   } else {
     console.log(now, ingame ? 'game started' : 'game closed');
   }
   await writeFile(`${DIR}/snap.json`, JSON.stringify(snap) + '\n');
-  commitAndPush(session ? `Match ended ${now.slice(0, 16)}Z` : `Status ${ingame ? 'in game' : 'offline'} ${now.slice(0, 16)}Z`);
+  commitAndPush(session ? `${session.d.BloodwebPoints ? 'Match ended' : 'Match update'} ${now.slice(0, 16)}Z` : `Status ${ingame ? 'in game' : 'offline'} ${now.slice(0, 16)}Z`);
   return true;
 }
 

@@ -190,7 +190,7 @@ footer a { color: var(--fog); }
     </div>
     <div class="card">
       <div class="card-head"><h2><i></i>Recent matches</h2></div>
-      <p class="hint">The collector checks Steam every minute. Steam saves your counters when a match ends, so each row is one match. Length is measured from the previous match's end (or from launching the game), so it includes the lobby and queue.</p>
+      <p class="hint">The collector checks Steam every minute. Steam saves progress every few minutes during a match and adds Bloodpoints only when it ends, so updates are grouped into whole matches. Length runs from the previous match's end (or from launching the game), so it includes the lobby and queue. Rows with a time range were not timed precisely and may hold more than one match.</p>
       <div class="tbl-wrap" id="ov-windows"></div>
     </div>
   </section>
@@ -256,27 +256,36 @@ footer a { color: var(--fog); }
     return;
   }
   SESS = SESS.slice().sort((a, b) => a.t1 < b.t1 ? -1 : 1);
-  // Steam sometimes saves one match in two steps a minute apart: merge those.
+  // Steam uploads your counters every ~5 minutes during a match and once more at the end.
+  // Only the end-of-match upload adds Bloodpoints and pips, so readings are grouped into
+  // matches that close on a Bloodpoints change.
   const ms = iso => new Date(iso).getTime();
-  const merged = [];
-  for (const w of SESS) {
-    const last = merged[merged.length - 1];
-    if (last && ms(w.t1) - ms(last.t1) <= 3 * 60000 && ms(w.t0) - ms(last.t1) <= 60000) {
-      for (const k in w.d) last.d[k] = (last.d[k] || 0) + w.d[k];
-      last.pt = (last.pt || 0) + (w.pt || 0); last.t1 = w.t1;
-    } else merged.push({ ...w, d: { ...w.d } });
-  }
-  SESS = merged;
-  // Match length: from the previous match end in the same play session, or from game launch.
+  const matches = [];
+  let cur = null;
   SESS.forEach((w, i) => {
-    const prev = SESS[i - 1];
-    const fine = ms(w.t1) - ms(w.t0) <= 5 * 60000; // previous reading was recent, so the end time is precise
-    let start = null;
-    if (prev && ms(w.t1) - ms(prev.t1) <= 45 * 60000 && (!w.on || ms(w.on) <= ms(prev.t1))) start = ms(prev.t1);
-    else if (w.on) start = ms(w.on);
-    w.fine = fine;
-    w.len = fine && start != null ? Math.round((ms(w.t1) - start) / 60000) : null;
+    if (!cur) cur = { t0: w.t0, t1: w.t1, on: w.on, pt: 0, parts: 0, d: {} };
+    for (const k in w.d) cur.d[k] = (cur.d[k] || 0) + w.d[k];
+    cur.pt += w.pt || 0; cur.parts++; cur.t1 = w.t1;
+    // the end time is precise when the collector had read Steam within the previous few minutes
+    cur.fine = w.tp ? ms(w.t1) - ms(w.tp) <= 3 * 60000 : ms(w.t1) - ms(w.t0) <= 6 * 60000;
+    const next = SESS[i + 1];
+    const ended = (w.d.BloodwebPoints || 0) > 0;
+    if (ended || !next || ms(next.t1) - ms(w.t1) > 25 * 60000) {
+      cur.done = ended;
+      cur.live = !ended && !next && Date.now() - ms(w.t1) < 15 * 60000;
+      matches.push(cur); cur = null;
+    }
   });
+  // Length: from the previous match's end in the same play session, or from launching the game.
+  matches.forEach((m, i) => {
+    const prev = matches[i - 1];
+    let start = null;
+    if (prev && prev.done && ms(m.t1) - ms(prev.t1) <= 45 * 60000 && (!m.on || ms(m.on) <= ms(prev.t1))) start = prev.fine ? ms(prev.t1) : null;
+    else if (m.on) start = ms(m.on);
+    m.len = m.done && m.fine && start != null ? Math.round((ms(m.t1) - start) / 60000) : null;
+    m.fine = m.fine && m.done;
+  });
+  SESS = matches.filter(m => !m.live || m.parts);
   const S = SNAP.s;
   const $ = id => document.getElementById(id);
   const fmt = (n, d = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -412,8 +421,8 @@ footer a { color: var(--fog); }
     t.append(tb); host.append(t);
   }
   const tdText = (cls, text) => el('td', cls, text);
-  const colWhen = { h: 'Ended', td: w => tdText(null, w.len != null ? when(w.t1) : `${when(w.t0)} – ${hhmm(w.t1)}`) };
-  const colPlayed = { h: 'Length', r: 1, td: w => tdText('r num', w.len != null ? '~' + w.len + ' min' : (w.pt ? fmt(w.pt) + ' min' : '—')) };
+  const colWhen = { h: 'Ended', td: w => { const td = el('td'); if (w.live) { td.append(el('span', 'live', 'In progress')); return td; } td.textContent = w.fine ? when(w.t1) : `${when(w.t0)} – ${hhmm(w.t1)}`; if (!w.fine) td.title = 'Not timed precisely, may hold more than one match'; return td; } };
+  const colPlayed = { h: 'Length', r: 1, td: w => tdText('r num', w.live ? 'so far ' + Math.round((Date.now() - ms(w.t0)) / 60000) + ' min' : w.len != null ? '~' + w.len + ' min' : '—') };
 
   // OVERVIEW
   const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
