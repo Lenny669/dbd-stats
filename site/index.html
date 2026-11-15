@@ -253,6 +253,68 @@ td.r, th.r { text-align: right; }
 footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 40px; padding-top: 18px; display: grid; gap: 6px; }
 @media (max-width: 640px) { .tabs { width: 100%; } .tabs a { flex: 1; justify-content: center; padding: 9px 6px; } .search { width: 100%; } .gauges { grid-template-columns: 1fr 1fr; } .podium { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .view.on, .live::before { animation: none; } .tile, .gauge, .match { transition: none; } }
+
+/* ===== App shell: side rail + main column ===== */
+.app { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100vh; }
+.rail { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 22px; padding: 22px 18px; border-right: 1px solid var(--line); background: linear-gradient(180deg, rgba(14,14,18,.88), rgba(9,9,12,.75)); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); z-index: 20; }
+.rail::after { content: ""; position: absolute; top: 0; right: -1px; width: 1px; height: 100%; background: linear-gradient(180deg, transparent, var(--blood) 30%, transparent 70%); opacity: .6; }
+.rail-brand { display: flex; align-items: center; gap: 12px; }
+.rail-title { display: flex; flex-direction: column; line-height: .9; }
+.rail-title b { font: 900 26px var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.rail-title span { font: 700 13px var(--cond); letter-spacing: .4em; text-transform: uppercase; color: var(--blood); }
+.player { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.035); border: 1px solid var(--line); }
+.avatar { width: 46px; height: 46px; border-radius: 14px; flex: none; display: grid; place-items: center; background: conic-gradient(from 200deg, var(--blood), var(--killer), var(--surv), var(--blood)); padding: 2px; }
+.avatar span { width: 100%; height: 100%; border-radius: 12px; background: #111217; display: grid; place-items: center; font: 900 22px var(--display); }
+.pinfo { min-width: 0; }
+.pinfo h1 { margin: 0; font: 800 22px/1.05 var(--display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pstatus { font-size: 13px; margin-top: 3px; }
+.rail .tabs { flex-direction: column; background: none; border: 0; padding: 0; gap: 6px; }
+.rail .tabs a { padding: 12px 14px; border-radius: 12px; font-size: 16px; }
+.rail .tabs a svg { width: 18px; height: 18px; }
+.rail .tabs a:not([aria-current]):hover { background: rgba(255,255,255,.04); }
+.rail-foot { margin-top: auto; display: grid; gap: 10px; font-size: 12.5px; color: var(--muted); }
+.rail-foot div { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--line-2); }
+.rail-foot b { color: var(--fog); font-weight: 600; text-align: right; }
+.rail-foot p { margin: 4px 0 0; line-height: 1.45; }
+.main { min-width: 0; padding: 26px clamp(16px, 3vw, 40px) 80px; }
+.main .view { padding-top: 0; }
+
+/* ===== Bento grid ===== */
+.bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.b-12 { grid-column: span 12; } .b-8 { grid-column: span 8; } .b-7 { grid-column: span 7; } .b-5 { grid-column: span 5; } .b-4 { grid-column: span 4; }
+.stretch { align-self: stretch; }
+.view.on .bento > * { animation: cardIn .55s cubic-bezier(.2,.7,.2,1) both; }
+.view.on .bento > *:nth-child(2) { animation-delay: .05s; } .view.on .bento > *:nth-child(3) { animation-delay: .1s; } .view.on .bento > *:nth-child(4) { animation-delay: .15s; } .view.on .bento > *:nth-child(5) { animation-delay: .2s; } .view.on .bento > *:nth-child(n+6) { animation-delay: .25s; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+.bento > .groups { columns: 3 300px; }
+
+/* ===== Banner upgrades: giant outlined backdrop word + claw marks ===== */
+.banner { min-height: 300px; }
+.banner .backdrop { position: absolute; left: -8px; bottom: -28px; font: 900 clamp(110px, 16vw, 230px)/.8 var(--display); text-transform: uppercase; white-space: nowrap; color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--c) 30%, transparent); opacity: .55; pointer-events: none; letter-spacing: -.01em; }
+.banner .claws { position: absolute; right: 30%; top: -10px; width: 170px; height: 220px; pointer-events: none; opacity: .5; }
+.banner .claws path { fill: none; stroke: var(--c); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 8px var(--c)); stroke-dasharray: 260; stroke-dashoffset: 260; }
+.view.on .banner .claws path { animation: slash .7s cubic-bezier(.6,0,.2,1) forwards; }
+.view.on .banner .claws path:nth-child(2) { animation-delay: .1s; } .view.on .banner .claws path:nth-child(3) { animation-delay: .2s; }
+@keyframes slash { to { stroke-dashoffset: 0; } }
+.b-8.banner { grid-template-columns: 1.15fr 1fr; }
+
+/* ===== Responsive: rail becomes top bar + bottom tab bar ===== */
+@media (max-width: 1100px) { .b-8, .b-4, .b-7, .b-5 { grid-column: span 12; } .b-8.banner { grid-template-columns: 1.3fr 1fr; } }
+@media (max-width: 980px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { position: sticky; height: auto; flex-direction: row; align-items: center; padding: 10px 16px; gap: 14px; border-right: 0; border-bottom: 1px solid var(--line); backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(10,10,13,.94); }
+  .rail::after { display: none; }
+  .rail-title, .rail-foot { display: none; }
+  .player { padding: 6px 10px; flex: 1; min-width: 0; background: none; border: 0; }
+  .avatar { width: 38px; height: 38px; }
+  .rail .tabs { position: fixed; left: 12px; right: 12px; bottom: 12px; flex-direction: row; justify-content: space-around; padding: 6px; border-radius: 18px; background: rgba(14,14,18,.92); border: 1px solid var(--line-2); backdrop-filter: blur(16px); box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 25; }
+  .rail .tabs a { flex: 1; justify-content: center; flex-direction: column; gap: 3px; padding: 8px 4px; font-size: 12px; }
+  .main { padding-bottom: 110px; }
+  .banner .claws { display: none; }
+}
+@media (max-width: 880px) { .b-8.banner, .banner { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .tile .d { position: static; display: inline-block; margin-top: 8px; } .tile .k { letter-spacing: .08em; } }
+@media (prefers-reduced-motion: reduce) { .view.on .bento > *, .view.on .banner .claws path { animation: none; stroke-dashoffset: 0; } }
 </style>
 </head>
 <body>
@@ -265,103 +327,109 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <symbol id="i-run" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4" r="2"/><path d="m6 21 4-6 3 3 1-7 4 3"/><path d="M9 10l3-3 3 1"/></g></symbol>
   </defs>
 </svg>
-<div class="top">
-  <div class="top-in">
-    <div class="brand">
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
       <svg class="sigil" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a63"/><stop offset="1" stop-color="#8a0f22"/></linearGradient></defs><rect x="2" y="2" width="44" height="44" rx="13" fill="url(#sg)"/><use href="#hook" x="8" y="8" width="32" height="32" style="color:#fff"/></svg>
-      <div>
-        <h1><b id="pname" style="font-weight:inherit">Lenny</b>'s <span>DBD</span></h1>
-        <div class="meta"><span>Synced <b id="synced" class="num" style="color:var(--fog)">—</b></span><span id="ingame"></span></div>
+      <div class="rail-title"><b>Fog</b><span>Ledger</span></div>
+    </div>
+    <div class="player">
+      <div class="avatar" aria-hidden="true"><span id="pinit">L</span></div>
+      <div class="pinfo">
+        <h1 id="pname">Lenny</h1>
+        <div id="ingame" class="pstatus"></div>
       </div>
     </div>
     <nav class="tabs" aria-label="Sections">
-      <a href="#overview" id="tab-overview"><svg aria-hidden="true"><use href="#i-eye"/></svg>Overview</a>
-      <a href="#killer" id="tab-killer"><svg aria-hidden="true"><use href="#i-blade"/></svg>Killer</a>
-      <a href="#survivor" id="tab-survivor"><svg aria-hidden="true"><use href="#i-run"/></svg>Survivor</a>
+      <a href="#overview" id="tab-overview"><svg aria-hidden="true"><use href="#i-eye"/></svg><span>Overview</span></a>
+      <a href="#killer" id="tab-killer"><svg aria-hidden="true"><use href="#i-blade"/></svg><span>Killer</span></a>
+      <a href="#survivor" id="tab-survivor"><svg aria-hidden="true"><use href="#i-run"/></svg><span>Survivor</span></a>
     </nav>
-  </div>
-</div>
+    <div class="rail-foot">
+      <div><span>Last change</span><b id="synced" class="num">—</b></div>
+      <div><span>Tracking since</span><b id="since">—</b></div>
+      <p>Steam Web API counters for this Steam account, read every 30 s by a GitHub Actions job. The page updates itself.</p>
+    </div>
+  </aside>
 
-<div class="wrap">
-  <section class="view" id="v-overview" aria-labelledby="tab-overview">
-    <div class="banner" id="ov-banner" style="--c: var(--blood)"></div>
-    <div class="tiles" id="ov-tiles"></div>
-    <div class="ticker" aria-label="Fun facts"><div class="ticker-track" id="ov-ribbon"></div></div>
-    <div class="grid g2">
-      <div class="card" style="--c: var(--good)">
-        <div class="card-head"><h3><i></i><span id="sess-title">Tonight's session</span></h3></div>
-        <div class="session" id="ov-session"></div>
-      </div>
-      <div class="card" style="--c: var(--gold)">
-        <div class="card-head"><h3><i></i>Next milestones</h3></div>
-        <div class="miles" id="ov-miles"></div>
-      </div>
-    </div>
-    <div class="card" style="--c: var(--blood)">
-      <div class="card-head"><h3><i></i>When you play</h3></div>
-      <p class="hint">Matches per day over the last 20 weeks, and what time of day your matches end. Both fill in as the collector tracks more games.</p>
-      <div class="cal-wrap"><div class="cal" id="ov-cal"></div></div>
-      <div class="cal-legend"><span>Fewer</span><i style="background:rgba(255,255,255,.05)"></i><i style="background:#4a1420"></i><i style="background:#7d1a2c"></i><i style="background:#b81f3a"></i><i style="background:#ff3d5a"></i><span>More</span></div>
-      <div class="hours" id="ov-hours" aria-label="Matches by hour of day"></div>
-      <div class="hours-lbl" id="ov-hours-lbl"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h3><i></i>Recent matches</h3></div>
-      <p class="hint">Checked every 30 seconds. Steam saves progress every few minutes during a match and adds Bloodpoints only at the end, so updates are grouped into whole matches. Length runs from the previous match's end (or from launching the game), so it includes lobby and queue.</p>
-      <div class="timeline" id="ov-matches"></div>
-    </div>
-  </section>
-
-  <section class="view" id="v-killer" aria-labelledby="tab-killer">
-    <div class="banner" id="k-banner" style="--c: var(--killer)"></div>
-    <div class="tiles" id="k-tiles"></div>
-    <div class="grid g2">
-      <div class="card" style="--c: var(--gold)">
-        <div class="card-head"><h3><i></i>Power podium</h3></div>
-        <p class="hint">Your three most-used killer powers, lifetime.</p>
-        <div class="podium" id="k-podium"></div>
-      </div>
-      <div class="card" style="--c: var(--killer)">
-        <div class="card-head"><h3><i></i>Per-killer results</h3></div>
-        <p class="hint">From single matches caught by the minute-by-minute collector. Kill rate = kills ÷ (4 × matches).</p>
-        <div class="tbl-wrap" id="k-per"></div>
-      </div>
-    </div>
-    <div class="card" style="--c: var(--killer)">
-      <div class="card-head">
-        <h3><i></i>Every killer power</h3>
-        <div class="controls">
-          <input class="search" id="p-search" type="search" placeholder="Find a killer" aria-label="Find a killer">
-          <div class="seg" role="group" aria-label="Sort powers">
-            <button id="p-life" aria-pressed="true">Lifetime</button>
-            <button id="p-30" aria-pressed="false">30 days</button>
-          </div>
+  <main class="main">
+    <section class="view" id="v-overview" aria-labelledby="tab-overview">
+      <div class="bento">
+        <div class="banner b-12" id="ov-banner" style="--c: var(--blood)"></div>
+        <div class="tiles b-12" id="ov-tiles"></div>
+        <div class="ticker b-12" aria-label="Fun facts"><div class="ticker-track" id="ov-ribbon"></div></div>
+        <div class="card b-4 stretch" style="--c: var(--good)">
+          <div class="card-head"><h3><i></i><span id="sess-title">Tonight's session</span></h3></div>
+          <div class="session" id="ov-session"></div>
+        </div>
+        <div class="card b-8 stretch" style="--c: var(--blood)">
+          <div class="card-head"><h3><i></i>When you play</h3></div>
+          <p class="hint">Matches per day over the last 20 weeks, and the hour your matches end.</p>
+          <div class="cal-wrap"><div class="cal" id="ov-cal"></div></div>
+          <div class="cal-legend"><span>Fewer</span><i style="background:rgba(255,255,255,.05)"></i><i style="background:#4a1420"></i><i style="background:#7d1a2c"></i><i style="background:#b81f3a"></i><i style="background:#ff3d5a"></i><span>More</span></div>
+          <div class="hours" id="ov-hours" aria-label="Matches by hour of day"></div>
+          <div class="hours-lbl" id="ov-hours-lbl"></div>
+        </div>
+        <div class="card b-4 stretch" style="--c: var(--gold)">
+          <div class="card-head"><h3><i></i>Next milestones</h3></div>
+          <div class="miles" id="ov-miles"></div>
+        </div>
+        <div class="card b-8 stretch">
+          <div class="card-head"><h3><i></i>Recent matches</h3></div>
+          <p class="hint">Steam saves progress every few minutes during a match and adds Bloodpoints only at the end, so updates are grouped into whole matches. Length includes lobby and queue.</p>
+          <div class="timeline" id="ov-matches"></div>
         </div>
       </div>
-      <p class="hint">Each counter measures a different action, so compare a killer with itself over time rather than with the others.</p>
-      <div class="scroll"><div class="plist" id="p-list"></div></div>
-    </div>
-    <div class="groups" id="k-groups"></div>
-    <div class="card" style="--c: var(--killer)">
-      <div class="card-head"><h3><i></i>Recent killer matches</h3></div>
-      <div class="timeline" id="k-matches"></div>
-    </div>
-  </section>
+    </section>
 
-  <section class="view" id="v-survivor" aria-labelledby="tab-survivor">
-    <div class="banner" id="s-banner" style="--c: var(--surv)"></div>
-    <div class="tiles" id="s-tiles"></div>
-    <div class="groups" id="s-groups"></div>
-    <div class="card" style="--c: var(--surv)">
-      <div class="card-head"><h3><i></i>Recent survivor matches</h3></div>
-      <div class="timeline" id="s-matches"></div>
-    </div>
-  </section>
+    <section class="view" id="v-killer" aria-labelledby="tab-killer">
+      <div class="bento">
+        <div class="banner b-12" id="k-banner" style="--c: var(--killer)"></div>
+        <div class="tiles b-12" id="k-tiles"></div>
+        <div class="card b-5" style="--c: var(--gold)">
+          <div class="card-head"><h3><i></i>Power podium</h3></div>
+          <p class="hint">Your three most-used killer powers, lifetime.</p>
+          <div class="podium" id="k-podium"></div>
+        </div>
+        <div class="card b-7" style="--c: var(--killer)">
+          <div class="card-head"><h3><i></i>Per-killer results</h3></div>
+          <p class="hint">From single matches caught by the collector. Kill rate = kills ÷ (4 × matches).</p>
+          <div class="tbl-wrap" id="k-per"></div>
+        </div>
+        <div class="card b-12" style="--c: var(--killer)">
+          <div class="card-head">
+            <h3><i></i>Every killer power</h3>
+            <div class="controls">
+              <input class="search" id="p-search" type="search" placeholder="Find a killer" aria-label="Find a killer">
+              <div class="seg" role="group" aria-label="Sort powers">
+                <button id="p-life" aria-pressed="true">Lifetime</button>
+                <button id="p-30" aria-pressed="false">30 days</button>
+              </div>
+            </div>
+          </div>
+          <p class="hint">Each counter measures a different action, so compare a killer with itself over time rather than with the others.</p>
+          <div class="scroll"><div class="plist" id="p-list"></div></div>
+        </div>
+        <div class="groups b-12" id="k-groups"></div>
+        <div class="card b-12" style="--c: var(--killer)">
+          <div class="card-head"><h3><i></i>Recent killer matches</h3></div>
+          <div class="timeline" id="k-matches"></div>
+        </div>
+      </div>
+    </section>
 
-  <footer>
-    <div>Data: Steam Web API (Dead by Daylight, app 381210), checked every 30 seconds by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page checks for new data every 20 seconds and updates itself.</div>
-    <div>Green figures show what changed in the last 30 days of tracking, which began <b id="since">—</b>.</div>
-  </footer>
+    <section class="view" id="v-survivor" aria-labelledby="tab-survivor">
+      <div class="bento">
+        <div class="banner b-12" id="s-banner" style="--c: var(--surv)"></div>
+        <div class="tiles b-12" id="s-tiles"></div>
+        <div class="groups b-12" id="s-groups"></div>
+        <div class="card b-12" style="--c: var(--surv)">
+          <div class="card-head"><h3><i></i>Recent survivor matches</h3></div>
+          <div class="timeline" id="s-matches"></div>
+        </div>
+      </div>
+    </section>
+  </main>
 </div>
 <div class="tip" id="tip"></div>
 
@@ -534,6 +602,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
   // Header
   $('pname').textContent = SNAP.name || 'Lenny';
+  $('pinit').textContent = (SNAP.name || 'L').trim()[0].toUpperCase();
   $('synced').textContent = when(SNAP.t);
   $('synced').title = 'Time of the last change the collector saw';
   {
@@ -582,9 +651,10 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     a.append(el('div', 'sub', sub));
     return a;
   }
-  function banner(box, eyebrow, title, accent, text, facts, gauges) {
+  function banner(box, eyebrow, title, accent, text, facts, gauges, backdropWord) {
     const b = $(box);
-    b.insertAdjacentHTML('afterbegin', '<svg class="ghost" viewBox="0 0 48 48" aria-hidden="true"><use href="#hook" style="color:#fff"/></svg>');
+    b.insertAdjacentHTML('afterbegin', '<svg class="ghost" viewBox="0 0 48 48" aria-hidden="true"><use href="#hook" style="color:#fff"/></svg><svg class="claws" viewBox="0 0 170 220" aria-hidden="true"><path d="M40 10 C 70 80, 80 140, 60 210"/><path d="M85 0 C 112 75, 120 140, 102 215"/><path d="M128 14 C 150 80, 156 140, 140 205"/></svg>');
+    const bd = el('div', 'backdrop', backdropWord || title); bd.setAttribute('aria-hidden', 'true'); b.prepend(bd);
     const left = el('div');
     const h = el('h2'); h.append(document.createTextNode(title + ' ')); if (accent) h.append(el('em', null, accent));
     left.append(el('div', 'eyebrow', eyebrow), h);
@@ -782,6 +852,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
      gauge(fourK, '4K rate', kMatches.length ? 'matches with every survivor dead' : 'after your next killer match', '#f2c35b', null, 'bar')]);
   // put "The" on its own line feel: keep name intact
   $('k-banner').querySelector('h2').textContent = main.killer;
+  $('k-banner').querySelector('.backdrop').textContent = main.killer.replace(/^The /, '');
+  $('ov-banner').querySelector('.backdrop').textContent = 'The Fog';
   tiles('k-tiles', [
     ['Perfect games', fmt(S.SlasherMaxScoreByCategory), '4,000 points in every category', 'var(--killer)', d30.SlasherMaxScoreByCategory ? fmt(d30.SlasherMaxScoreByCategory) : ''],
     ['Hatches closed', fmt(S.Chapter13_Slasher_Stat1), `${fmt(S.Chapter11_Slasher_Stat1)} wins before the last gen`, 'var(--killer)', d30.Chapter13_Slasher_Stat1 ? fmt(d30.Chapter13_Slasher_Stat1) : ''],
@@ -852,6 +924,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     [[fmt(S.Escape), 'escapes'], [fmt(S.EscapeThroughHatch), 'through the hatch'], [fmt(S.Chapter9_Camper_Stat1), 'self-unhooks']],
     [gauge(escRate, 'Escape rate', sMatches.length ? `${plural(escCount, 'escape')} in ${plural(sMatches.length, 'match')} · last 10 shown` : 'after your next survivor match', '#7cc0ea', null, 'pips', survForm),
      gauge(S.Escape ? S.EscapeThroughHatch / S.Escape * 100 : null, 'Hatch share', 'of all lifetime escapes', '#a98be6', null, 'bar')]);
+  $('s-banner').querySelector('.backdrop').textContent = 'Escape';
   tiles('s-tiles', [
     ['Generators', fmt(S.GeneratorPct_float), 'repaired in full', 'var(--surv)', d30.GeneratorPct_float ? fmt(d30.GeneratorPct_float, 1) : ''],
     ['Heals', fmt(S.HealPct_float), `${fmt(S.UnhookOrHeal)} unhooks and saves`, 'var(--surv)', d30.HealPct_float ? fmt(d30.HealPct_float, 1) : ''],
