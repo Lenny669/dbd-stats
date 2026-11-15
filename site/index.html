@@ -54,6 +54,9 @@ body::after { content: ""; position: fixed; inset: 0; z-index: 30; pointer-event
 .brand h1 span { color: var(--blood); text-shadow: 0 0 18px rgba(227, 33, 63, .55); }
 .brand .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin-top: 4px; }
 .live { display: inline-flex; align-items: center; gap: 7px; color: var(--good); font-weight: 600; }
+.state { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.state.menu { color: var(--gold); } .state.off { color: var(--muted); }
 .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: pulse 2s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(114, 219, 160, .6); } 70% { box-shadow: 0 0 0 8px rgba(114, 219, 160, 0); } 100% { box-shadow: 0 0 0 0 rgba(114, 219, 160, 0); } }
 .tabs { display: flex; gap: 4px; background: rgba(255, 255, 255, .035); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
@@ -305,6 +308,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // Only the end-of-match upload adds Bloodpoints and pips, so readings are grouped into
   // matches that close on a Bloodpoints change.
   const ms = iso => new Date(iso).getTime();
+  const STALL = 8 * 60000;
   const matches = [];
   let cur = null;
   SESS.forEach((w, i) => {
@@ -315,10 +319,15 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     cur.fine = w.tp ? ms(w.t1) - ms(w.tp) <= 3 * 60000 : ms(w.t1) - ms(w.t0) <= 6 * 60000;
     const next = SESS[i + 1];
     const ended = (w.d.BloodwebPoints || 0) > 0;
-    if (ended || !next || ms(next.t1) - ms(w.t1) > 25 * 60000) {
+    // Mid-match uploads come every ~5 min. If they stop without a final (Bloodpoints) upload,
+    // the match ended without a scoreboard: a disconnect, crash or quit.
+    const silentFor = next ? ms(next.t1) - ms(w.t1) : Date.now() - ms(w.t1);
+    if (ended || silentFor > STALL || (!next && !SNAP.ingame)) {
       cur.done = ended;
-      cur.live = !ended && !next && Date.now() - ms(w.t1) < 15 * 60000;
+      cur.dc = !ended;
       matches.push(cur); cur = null;
+    } else if (!next) {
+      cur.live = true; matches.push(cur); cur = null;
     }
   });
   // Length: from the previous match's end in the same play session, or from launching the game.
@@ -428,7 +437,14 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // Header
   $('pname').textContent = SNAP.name || 'Lenny';
   $('synced').textContent = when(SNAP.t);
-  if (SNAP.ingame) $('ingame').append(el('span', 'live', 'In the fog right now'));
+  {
+    const last = SESS[SESS.length - 1];
+    let status;
+    if (!SNAP.ingame) status = el('span', 'state off', 'Game closed');
+    else if (last && last.live) status = el('span', 'live', `In a match · ${Math.max(1, Math.round((Date.now() - ms(last.t0)) / 60000))} min`);
+    else status = el('span', 'state menu', 'In menus or lobby');
+    $('ingame').append(status);
+  }
   $('since').textContent = SESS.length ? when(SESS[0].t0) : when(SNAP.t);
 
   const tip = $('tip');
@@ -500,7 +516,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     card.style.setProperty('--mc', role === 'k' ? 'var(--killer)' : role === 's' ? 'var(--surv)' : 'var(--muted)');
     const time = el('div', 'time');
     if (w.live) { time.append(el('span', 'live', 'Now')); time.append(el('small', null, 'match in progress')); }
-    else if (w.fine || w.single) { time.append(document.createTextNode(hhmm(w.t1))); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
+    else if (w.fine || w.single || w.dc) { time.append(document.createTextNode(hhmm(w.t1))); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
     else { time.append(document.createTextNode(`${hhmm(w.t0)}–${hhmm(w.t1)}`)); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
     const what = el('div', 'what');
     const title = role === 'k' ? (c.killers.length === 1 ? c.killers[0] : c.killers.length ? c.killers.join(' + ') : 'Killer match') : role === 's' ? 'Survivor match' : (c.asK && c.asS ? 'Killer + survivor' : 'Bloodweb & menus');
@@ -512,10 +528,12 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     if (role !== 'k') { if (c.gens) chip(fmt(c.gens, 1) + ' gens', 's'); if (c.heals) chip(fmt(c.heals, 1) + ' heals', 's'); if (w.d.SkillCheckSuccess) chip(fmt(w.d.SkillCheckSuccess) + ' skill checks'); if (w.d.UnhookOrHeal) chip(fmt(w.d.UnhookOrHeal) + ' saves', 's'); }
     if (role !== 's') { const p = POWERS.find(x => w.d[x[0]] > 0); if (p) chip(`${fmt(w.d[p[0]])} × ${p[2].toLowerCase()}`, 'k'); if (w.d.Chapter20_Slasher_Stat2) chip(fmt(w.d.Chapter20_Slasher_Stat2) + ' early hooks', 'k'); }
     if (c.bp) chip('+' + big(c.bp) + ' BP');
-    if (!w.fine && !w.live) chip(w.single ? 'confirmed single match' : 'may be several matches', 'warn');
+    if (w.dc) chip('no final score from Steam', 'warn');
+    else if (!w.fine && !w.live) chip(w.single ? 'confirmed single match' : 'may be several matches', 'warn');
     what.append(chips);
     const res = el('div', 'result');
     if (w.live) { res.append(el('div', 'big', '…')); res.append(el('small', null, 'waiting for the end')); }
+    else if (w.dc) { const bg = el('div', 'big', 'Left early'); bg.style.color = 'var(--gold)'; bg.style.fontSize = '24px'; res.append(bg, el('small', null, 'disconnected or quit · no scoreboard')); }
     else if (role === 'k') { res.append(el('div', 'big num', c.kills + 'K')); res.append(el('small', null, KILL_WORDS[Math.min(4, c.kills)])); }
     else if (role === 's') { const bg = el('div', 'big', c.esc ? (c.hatch ? 'Hatch' : 'Escaped') : 'Died'); if (!c.esc) bg.style.color = '#e0566c'; res.append(bg); res.append(el('small', null, c.esc ? 'made it out' : 'sacrificed or killed')); }
     else { res.append(el('div', 'big', '—')); }
