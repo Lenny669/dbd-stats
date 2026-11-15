@@ -379,10 +379,10 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     try { const r = await fetch(RAW + name + '?v=' + Date.now(), { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (_) {}
     return fetch('data/' + name + '?v=' + Date.now()).then(r => r.json());
   };
-  let SNAP, SESS, CONFIRMED = new Set();
+  let SNAP, SESS, CONFIRMED = new Set(), RESULTS = {};
   try {
     [SNAP, SESS] = await Promise.all([load('snap.json'), load('sessions.json')]);
-    try { CONFIRMED = new Set(((await load('confirmed.json')) || {}).single || []); } catch (_) {}
+    try { const cf = (await load('confirmed.json')) || {}; CONFIRMED = new Set(cf.single || []); RESULTS = cf.results || {}; } catch (_) {}
   } catch (e) {
     document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty" style="margin-top:28px">Could not load the stats data. Try reloading the page.</div>');
     return;
@@ -403,15 +403,21 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     cur.fine = w.tp ? ms(w.t1) - ms(w.tp) <= 3 * 60000 : ms(w.t1) - ms(w.t0) <= 6 * 60000;
     const next = SESS[i + 1];
     const ended = (w.d.BloodwebPoints || 0) > 0;
-    // Mid-match uploads come every ~5 min. If they stop without a final (Bloodpoints) upload,
-    // the match ended without a scoreboard: a disconnect, crash or quit.
+    // Mid-match uploads come every ~5 min; the final upload (with Bloodpoints) normally follows the
+    // scoreboard, but Steam sometimes receives it much later. So when uploads go quiet:
+    //  - a later upload WITH Bloodpoints is the delayed final of this match (keep it open);
+    //  - a later upload WITHOUT Bloodpoints means a new match started: this one got no final score;
+    //  - nothing yet: the result is still pending.
     const silentFor = next ? ms(next.t1) - ms(w.t1) : Date.now() - ms(w.t1);
-    if (ended || silentFor > STALL || (!next && !SNAP.ingame)) {
-      cur.done = ended;
-      cur.dc = !ended;
-      matches.push(cur); cur = null;
+    if (ended) { cur.done = true; if (cur.delayed) cur.fine = false; matches.push(cur); cur = null; }
+    else if (next && silentFor > STALL) {
+      if ((next.d.BloodwebPoints || 0) > 0 && silentFor < 3 * 3600e3) cur.delayed = true; // wait for the delayed final
+      else { cur.dc = true; matches.push(cur); cur = null; }
     } else if (!next) {
-      cur.live = true; cur.liveStart = ms(cur.first) - 5 * 60000; matches.push(cur); cur = null;
+      if (silentFor <= STALL && SNAP.ingame) { cur.live = true; cur.liveStart = ms(cur.first) - 5 * 60000; }
+      else if (SNAP.ingame && silentFor < 3 * 3600e3) cur.pending = true;
+      else cur.dc = true;
+      matches.push(cur); cur = null;
     }
   });
   // Length: from the previous match's end in the same play session, or from launching the game.
@@ -422,7 +428,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     else if (m.on) start = ms(m.on);
     m.len = m.done && m.fine && start != null ? Math.round((ms(m.t1) - start) / 60000) : null;
     m.fine = m.fine && m.done;
-    m.single = m.fine || (m.done && CONFIRMED.has(m.t1)); // counts towards kill / escape rate
+    const manual = RESULTS[m.t1];
+    if (manual && !m.done) { // a result you told us about for a match Steam never scored
+      m.done = true; m.manual = true; m.dc = false; m.pending = false; m.fine = false;
+      if (manual === 'escaped') m.d.Escape = (m.d.Escape || 0) + 1;
+      if (/^[0-4]k$/.test(manual)) m.d.SacrificedCampers = (m.d.SacrificedCampers || 0) + Number(manual[0]);
+    }
+    m.single = m.fine || (m.done && (CONFIRMED.has(m.t1) || m.manual)); // counts towards kill / escape rate
   });
   SESS = matches.filter(m => !m.live || m.parts);
   const S = SNAP.s;
@@ -614,7 +626,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     card.style.setProperty('--mc', role === 'k' ? 'var(--killer)' : role === 's' ? 'var(--surv)' : 'var(--muted)');
     const time = el('div', 'time');
     if (w.live) { time.append(el('span', 'live', 'Now')); time.append(el('small', null, 'match in progress')); }
-    else if (w.fine || w.single || w.dc) { time.append(document.createTextNode(hhmm(w.t1))); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
+    else if (w.fine || w.single || w.dc || w.pending || w.delayed) { time.append(document.createTextNode(hhmm(w.t1))); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
     else { time.append(document.createTextNode(`${hhmm(w.t0)}–${hhmm(w.t1)}`)); time.append(el('small', null, new Date(w.t1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))); }
     const what = el('div', 'what');
     const title = w.live && role === 'm' ? 'Match in progress' : role === 'k' ? (c.killers.length === 1 ? c.killers[0] : c.killers.length ? c.killers.join(' + ') : 'Killer match') : role === 's' ? 'Survivor match' : (c.asK && c.asS ? 'Killer + survivor' : 'Bloodweb & menus');
@@ -626,12 +638,16 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     if (role !== 'k') { if (c.gens) chip(fmt(c.gens, 1) + ' gens', 's'); if (c.heals) chip(fmt(c.heals, 1) + ' heals', 's'); if (w.d.SkillCheckSuccess) chip(fmt(w.d.SkillCheckSuccess) + ' skill checks'); if (w.d.UnhookOrHeal) chip(fmt(w.d.UnhookOrHeal) + ' saves', 's'); }
     if (role !== 's') { const p = POWERS.find(x => w.d[x[0]] > 0); if (p) chip(`${fmt(w.d[p[0]])} × ${p[2].toLowerCase()}`, 'k'); if (w.d.Chapter20_Slasher_Stat2) chip(fmt(w.d.Chapter20_Slasher_Stat2) + ' early hooks', 'k'); }
     if (c.bp) chip('+' + big(c.bp) + ' BP');
-    if (w.dc) chip('no final score from Steam', 'warn');
+    if (w.pending) chip('final score not in Steam yet', 'warn');
+    else if (w.dc) chip('no final score from Steam', 'warn');
+    else if (w.manual) chip('result added by you', 'warn');
+    else if (w.delayed) chip('score arrived late', 'warn');
     else if (!w.fine && !w.live) chip(w.single ? 'confirmed single match' : 'may be several matches', 'warn');
     what.append(chips);
     const res = el('div', 'result');
     if (w.live) { res.append(el('div', 'big', '…')); res.append(el('small', null, 'waiting for the end')); }
-    else if (w.dc) { const bg = el('div', 'big', 'Left early'); bg.style.color = 'var(--gold)'; bg.style.fontSize = '24px'; res.append(bg, el('small', null, 'disconnected or quit · no scoreboard')); }
+    else if (w.pending) { const bg = el('div', 'big', 'Awaiting result'); bg.style.color = 'var(--gold)'; bg.style.fontSize = '22px'; res.append(bg, el('small', null, "Steam hasn't received the final score yet")); }
+    else if (w.dc) { const bg = el('div', 'big', 'No result'); bg.style.color = 'var(--gold)'; bg.style.fontSize = '24px'; res.append(bg, el('small', null, 'disconnect, crash or quit · Steam never got a score')); }
     else if (role === 'k') { res.append(el('div', 'big num', c.kills + 'K')); res.append(el('small', null, KILL_WORDS[Math.min(4, c.kills)])); }
     else if (role === 's') { const bg = el('div', 'big', c.esc ? (c.hatch ? 'Hatch' : 'Escaped') : 'Died'); if (!c.esc) bg.style.color = '#e0566c'; res.append(bg); res.append(el('small', null, c.esc ? 'made it out' : 'sacrificed or killed')); }
     else { res.append(el('div', 'big', '—')); }
@@ -702,6 +718,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
         const c = classify(w);
         let cls, txt;
         if (w.live) { cls = 'live-i'; txt = 'now'; }
+        else if (w.pending) { cls = 'q'; txt = '?'; }
         else if (w.dc) { cls = 'q'; txt = 'DC'; }
         else if (c.asK && !c.asS) { cls = 'k'; txt = c.kills + 'K'; }
         else if (c.asS) { cls = c.esc ? 's-w' : 's-l'; txt = c.esc ? 'ESC' : 'DIED'; }

@@ -1,4 +1,10 @@
 {
-  "note": "Matches whose end time was not measured precisely but which you confirmed were a single match. Key = the match's end time (t1).",
-  "single": ["2026-11-15T00:40:41.108Z", "2026-11-15T01:31:02.273Z"]
+  "note": "single: matches whose end time was not timed precisely but which you confirmed were one match (key = end time t1). results: outcomes you reported for matches Steam never scored ('escaped', 'died', or '0k'..'4k'), used only if Steam's final upload never arrives.",
+  "single": [
+    "2026-11-15T00:40:41.108Z",
+    "2026-11-15T01:31:02.273Z"
+  ],
+  "results": {
+    "2026-11-15T02:46:20.440Z": "escaped"
+  }
 }
