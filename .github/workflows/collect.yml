@@ -3,21 +3,16 @@ name: Collect DBD stats
 # Each run polls Steam every minute for ~24 minutes and pushes every change at
 # once, then starts the next run itself (workflow_dispatch), so the collector is
 # always on. The 20-minute schedule only restarts the chain if it ever stops.
-# The site is republished at the end of each run; the page also reads fresh
-# data straight from the repo.
+# The page reads the data straight from this repo, so no site deploy is needed
+# here (the site itself is published by pages.yml).
 on:
   schedule:
     - cron: '*/20 * * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['site/index.html', 'collect.mjs', '.github/workflows/collect.yml']
 
 permissions:
   actions: write
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: collect
@@ -27,8 +22,6 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    environment:
-      name: github-pages
     steps:
       - uses: actions/checkout@v4
 
@@ -39,20 +32,12 @@ jobs:
       - name: Poll Steam stats
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-          LOOP_MINUTES: ${{ github.event_name == 'push' && '0' || '24' }}
+          LOOP_MINUTES: '24'
           COMMIT: '1'
         run: |
           git config user.name "dbd-stats-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           node collect.mjs
-
-      - name: Prepare site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - name: Publish site
-        uses: actions/deploy-pages@v4
 
       - name: Start the next run
         if: success()
