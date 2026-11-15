@@ -6,146 +6,235 @@
 <title>Lenny's DBD Stats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* Layout: lifetime strip -> killer powers ranking (the star) -> tracked sessions & per-killer deductions -> full killer / survivor counters. Single dark "fog" world. */
+/* Layout: sticky header with three tabs (Overview / Killer / Survivor). Each tab: hero row, then grouped cards. Killer powers live in a scrollable, searchable list. Single dark "fog" world. */
 :root {
-  --night: #0b0c0f;
-  --panel: #14161b;
-  --panel-2: #1b1e25;
-  --line: #2a2e37;
-  --fog: #c9ced8;
-  --muted: #868d9b;
-  --blood: #d11f3a;
-  --surv: #7fb4d6;
-  --killer: #e0673a;
+  --night: #09090c;
+  --panel: rgba(22, 24, 30, .82);
+  --panel-solid: #16181e;
+  --panel-2: #1d2028;
+  --line: rgba(255, 255, 255, .07);
+  --line-2: rgba(255, 255, 255, .12);
+  --fog: #d6dae3;
+  --muted: #8a909e;
+  --blood: #e0233f;
+  --surv: #79b8e0;
+  --killer: #ef6b3b;
   --good: #6fd39a;
   --display: "Big Shoulders Display", "Oswald", "Arial Narrow", sans-serif;
   --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --r: 16px;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
   background: var(--night);
-  background-image: radial-gradient(1200px 500px at 15% -10%, rgba(209,31,58,.14), transparent 60%),
-                    radial-gradient(900px 400px at 100% 0%, rgba(127,180,214,.08), transparent 60%);
-  background-repeat: no-repeat;
   color: var(--fog);
   font: 16px/1.5 var(--body);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(900px 520px at 10% -8%, rgba(224, 35, 63, .18), transparent 60%),
+    radial-gradient(800px 480px at 95% 5%, rgba(121, 184, 224, .10), transparent 60%),
+    radial-gradient(1200px 700px at 50% 110%, rgba(239, 107, 59, .07), transparent 60%);
+  background-attachment: fixed;
 }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 40px) 56px; display: grid; gap: 28px; }
-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-h1 { font: 900 clamp(38px, 6vw, 64px)/0.9 var(--display); letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
-h1 span { color: var(--blood); }
-.sub { color: var(--muted); font-size: 14px; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
-.sub b { color: var(--fog); font-weight: 600; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--line); }
-.pill.on { color: var(--good); border-color: rgba(111,211,154,.4); }
-.pill.on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
-h2 { font: 800 22px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
-h2 i { width: 10px; height: 10px; border-radius: 2px; transform: rotate(45deg); display: inline-block; background: var(--c, var(--blood)); }
 .num { font-variant-numeric: tabular-nums; }
-.lede { color: var(--muted); font-size: 14px; margin: -6px 0 14px; max-width: 72ch; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 64px; }
 
-.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
-.tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-.tile .v { font: 800 clamp(28px, 3.6vw, 40px)/1.05 var(--display); margin-top: 4px; }
+/* Header + tabs */
+.top { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: linear-gradient(to bottom, rgba(9, 9, 12, .92), rgba(9, 9, 12, .72)); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1180px; margin: 0 auto; padding: 14px clamp(16px, 4vw, 40px); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.mark { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(145deg, var(--blood), #7a0f20); display: grid; place-items: center; box-shadow: 0 6px 20px rgba(224, 35, 63, .35); flex: none; }
+.mark svg { width: 22px; height: 22px; }
+.brand h1 { font: 900 26px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; margin: 0; white-space: nowrap; }
+.brand h1 span { color: var(--blood); }
+.brand .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 600; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(111, 211, 154, .6); animation: pulse 2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(111, 211, 154, 0); } 100% { box-shadow: 0 0 0 0 rgba(111, 211, 154, 0); } }
+.tabs { display: flex; gap: 4px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+.tabs a { display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; transition: background .15s, color .15s; }
+.tabs a:hover { color: var(--fog); background: rgba(255, 255, 255, .04); }
+.tabs a[aria-current="page"] { color: #fff; background: var(--tc, var(--blood)); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.tabs a:focus-visible { outline: 2px solid var(--fog); outline-offset: 2px; }
+.tabs a i { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: currentColor; display: inline-block; }
+#tab-overview { --tc: var(--blood); } #tab-killer { --tc: var(--killer); } #tab-survivor { --tc: #3f86b4; }
+
+.view { display: none; padding-top: 28px; gap: 20px; }
+.view.on { display: grid; animation: rise .35s ease; }
+@keyframes rise { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .view.on, .live::before { animation: none; } }
+
+/* Cards */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); min-width: 0; }
+.card h2 { font: 800 20px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 10px; }
+.card h2 i { width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); background: var(--c, var(--blood)); display: inline-block; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; margin-bottom: 14px; }
+.hint { color: var(--muted); font-size: 13.5px; margin: -4px 0 16px; max-width: 70ch; }
+.grid { display: grid; gap: 20px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.g-hero { grid-template-columns: 1.1fr 1fr; }
+@media (max-width: 860px) { .g-hero { grid-template-columns: 1fr; } }
+
+/* Stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 14px; }
+.tile { position: relative; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.tile::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--c, var(--line-2)); opacity: .9; }
+.tile .k { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
+.tile .v { font: 800 clamp(30px, 3.8vw, 42px)/1.05 var(--display); margin-top: 6px; letter-spacing: .01em; }
 .tile .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.tile.k-c { border-top: 3px solid var(--killer); } .tile.s-c { border-top: 3px solid var(--surv); }
+.tile .d { position: absolute; top: 16px; right: 16px; font-size: 12px; font-weight: 700; color: var(--good); background: rgba(111, 211, 154, .1); padding: 2px 8px; border-radius: 999px; }
 
-.hero { display: grid; grid-template-columns: minmax(240px, 1fr) 2fr; gap: 20px; align-items: stretch; }
-@media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
-.topcard { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-top: 3px solid var(--killer); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
-.topcard::after { content: ""; position: absolute; right: -50px; top: -50px; width: 200px; height: 200px; border-radius: 50%; background: var(--killer); opacity: .14; filter: blur(34px); }
-.topcard .tag { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--killer); font-weight: 600; }
-.topcard .name { font: 900 clamp(34px, 5vw, 52px)/1 var(--display); text-transform: uppercase; margin-top: 6px; }
-.topcard .big { font: 800 clamp(44px, 6vw, 64px)/1 var(--display); }
-.topcard .what { color: var(--muted); font-size: 14px; }
+/* Spotlight */
+.spot { position: relative; overflow: hidden; border-radius: var(--r); padding: 26px; border: 1px solid var(--line); background: linear-gradient(140deg, color-mix(in srgb, var(--c) 22%, #16181e), #121419 70%); display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 230px; }
+.spot::after { content: ""; position: absolute; right: -80px; bottom: -90px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%); pointer-events: none; }
+.spot .tag { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--c); }
+.spot .name { font: 900 clamp(38px, 5.4vw, 60px)/.95 var(--display); text-transform: uppercase; margin-top: 8px; }
+.spot .row { display: flex; flex-wrap: wrap; gap: 18px 28px; position: relative; z-index: 1; }
+.spot .row b { display: block; font: 800 30px/1 var(--display); }
+.spot .row span { color: var(--muted); font-size: 13px; }
 
-.bars { display: grid; gap: 6px; }
-.bar { display: grid; grid-template-columns: minmax(120px, 170px) 1fr 70px; gap: 12px; align-items: center; font-size: 14px; cursor: default; }
-.bar .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar .n small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bar .track { position: relative; height: 24px; background: var(--panel-2); border-radius: 4px; }
-.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 4px; opacity: .85; }
-.bar .v { text-align: right; font-weight: 600; }
-.bar .delta { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--good); }
-.more { margin-top: 12px; font: 600 14px var(--body); color: var(--fog); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
-.more:focus-visible, .seg button:focus-visible { outline: 2px solid var(--fog); outline-offset: 2px; }
-.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 4px; }
-.seg button { font: 600 13px var(--body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--blood); color: #fff; }
-.head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
-.head-row h2 { margin: 0; }
+/* Role compare */
+.versus { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.side { border-radius: 14px; padding: 18px; background: var(--panel-2); border: 1px solid var(--line); text-decoration: none; color: inherit; display: block; transition: border-color .15s, transform .15s; }
+.side:hover { border-color: var(--c); transform: translateY(-2px); }
+.side .k { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--c); }
+.side .v { font: 800 38px/1 var(--display); margin: 8px 0 4px; }
+.side .s { color: var(--muted); font-size: 13px; }
+.side .go { margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--fog); }
 
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
-.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; background: var(--line); border-radius: 8px; overflow: hidden; }
-.fact { background: var(--panel-2); padding: 12px; }
-.fact .v { font: 800 22px/1.1 var(--display); }
-.fact .k { color: var(--muted); font-size: 12px; line-height: 1.3; margin-top: 2px; }
-.fact .d { color: var(--good); font-size: 12px; font-weight: 600; }
+/* Power list */
+.search { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; color: var(--fog); font: 500 14px var(--body); padding: 8px 12px; width: 190px; }
+.search:focus { outline: 2px solid var(--killer); outline-offset: 1px; }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { font: 600 13px var(--body); color: var(--muted); background: none; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--killer); color: #fff; }
+.seg button:focus-visible { outline: 2px solid var(--fog); outline-offset: 1px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.scroll { max-height: 520px; overflow-y: auto; padding-right: 6px; margin-right: -6px; scrollbar-width: thin; scrollbar-color: #3a3f4b transparent; mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); padding-bottom: 20px; }
+.scroll::-webkit-scrollbar { width: 6px; } .scroll::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 3px; }
+.prow { display: grid; grid-template-columns: 28px minmax(130px, 200px) 1fr 76px; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 10px; transition: background .12s; }
+.prow:hover { background: rgba(255, 255, 255, .035); }
+.prow .rk { color: var(--muted); font-size: 13px; font-weight: 600; text-align: right; }
+.prow .n { min-width: 0; }
+.prow .n b { display: block; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .n small { display: block; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { position: relative; height: 10px; background: rgba(255, 255, 255, .05); border-radius: 999px; overflow: hidden; }
+.track .f { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--killer) 55%, #000), var(--killer)); }
+.prow .v { text-align: right; font-weight: 700; font-size: 15px; }
+.prow .v small { display: block; color: var(--good); font-size: 12px; font-weight: 700; }
+.prow.zero { opacity: .45; }
+@media (max-width: 560px) { .prow { grid-template-columns: 22px 1fr 64px; } .prow .track { grid-column: 2 / 4; grid-row: 2; } }
 
+/* Fact groups */
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.facts { display: grid; gap: 2px; }
+.fact { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.fact:last-child { border-bottom: 0; }
+.fact span { color: #b9beca; }
+.fact b { font-weight: 700; white-space: nowrap; }
+.fact b small { color: var(--good); font-size: 12px; margin-left: 6px; }
+
+/* Windows / tables */
 .tbl-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; padding: 8px 10px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
 td.r, th.r { text-align: right; }
-.chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; margin: 1px 4px 1px 0; }
-.chip.k { background: rgba(224,103,58,.15); color: var(--killer); }
-.chip.s { background: rgba(127,180,214,.15); color: var(--surv); }
-.chip.m { background: rgba(134,141,155,.18); color: var(--muted); }
-.empty { color: var(--muted); font-size: 14px; padding: 18px; border: 1px dashed var(--line); border-radius: 8px; }
-.tip { position: fixed; pointer-events: none; background: #000; border: 1px solid var(--line); color: var(--fog); font-size: 13px; padding: 6px 10px; border-radius: 6px; opacity: 0; transition: opacity .1s; z-index: 5; max-width: 320px; }
-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 6px; }
-@media (max-width: 520px) { .bar { grid-template-columns: 104px 1fr 56px; gap: 8px; font-size: 13px; } }
-@media (prefers-reduced-motion: no-preference) { .fill { transition: width .5s ease; } }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; margin: 1px 4px 1px 0; white-space: nowrap; }
+.chip.k { background: rgba(239, 107, 59, .14); color: var(--killer); }
+.chip.s { background: rgba(121, 184, 224, .14); color: var(--surv); }
+.chip.m { background: rgba(138, 144, 158, .16); color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; padding: 20px; border: 1px dashed var(--line-2); border-radius: 12px; text-align: center; }
+.tip { position: fixed; pointer-events: none; background: #050507; border: 1px solid var(--line-2); color: var(--fog); font-size: 13px; padding: 7px 11px; border-radius: 8px; opacity: 0; transition: opacity .1s; z-index: 20; max-width: 320px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 36px; padding-top: 18px; display: grid; gap: 6px; }
+footer a { color: var(--fog); }
+@media (max-width: 640px) { .tabs { width: 100%; } .tabs a { flex: 1; justify-content: center; padding: 9px 8px; } .versus { grid-template-columns: 1fr; } .search { width: 100%; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1><b id="pname" style="font-weight:inherit">Lenny</b>'s <span>DBD</span> stats</h1>
-      <div class="sub"><span>Steam lifetime counters · last sync <b id="synced">—</b></span><span id="ingame"></span></div>
+<div class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2.5v6.5"/><path d="M12 9c3 0 5 2.2 5 5s-2.2 5-5 5-5-2.2-5-5"/><path d="M7 14l-2.5-2.5"/></svg></div>
+      <div>
+        <h1><b id="pname" style="font-weight:inherit">Lenny</b>'s <span>DBD</span></h1>
+        <div class="meta"><span>Synced <b id="synced" class="num" style="color:var(--fog)">—</b></span><span id="ingame"></span></div>
+      </div>
     </div>
-  </header>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview" id="tab-overview"><i></i>Overview</a>
+      <a href="#killer" id="tab-killer"><i></i>Killer</a>
+      <a href="#survivor" id="tab-survivor"><i></i>Survivor</a>
+    </nav>
+  </div>
+</div>
 
-  <section class="strip" id="strip"></section>
+<div class="wrap">
+  <!-- OVERVIEW -->
+  <section class="view" id="v-overview" aria-labelledby="tab-overview">
+    <div class="tiles" id="ov-tiles"></div>
+    <div class="grid g-hero">
+      <div class="spot" id="ov-spot" style="--c: var(--killer)"></div>
+      <div class="card">
+        <div class="card-head"><h2><i></i>Killer vs survivor</h2></div>
+        <div class="versus" id="ov-versus"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2><i></i>Recent play</h2></div>
+      <p class="hint">Every 15 minutes the collector compares your Steam counters with the previous reading. Each row is a stretch of time in which something changed.</p>
+      <div class="tbl-wrap" id="ov-windows"></div>
+    </div>
+  </section>
 
-  <section class="hero">
-    <div class="topcard" id="topcard"></div>
-    <div class="panel" id="powers" style="--c: var(--killer)">
-      <div class="head-row">
-        <h2><i></i>Killer powers</h2>
-        <div class="seg" role="group" aria-label="Sort powers">
-          <button id="sort-life" aria-pressed="true">Lifetime</button>
-          <button id="sort-30" aria-pressed="false">Last 30 days</button>
+  <!-- KILLER -->
+  <section class="view" id="v-killer" aria-labelledby="tab-killer">
+    <div class="tiles" id="k-tiles"></div>
+    <div class="grid g-hero">
+      <div class="card" style="--c: var(--killer)">
+        <div class="card-head">
+          <h2><i></i>Killer powers</h2>
+          <div class="controls">
+            <input class="search" id="p-search" type="search" placeholder="Find a killer" aria-label="Find a killer">
+            <div class="seg" role="group" aria-label="Sort powers">
+              <button id="p-life" aria-pressed="true">Lifetime</button>
+              <button id="p-30" aria-pressed="false">30 days</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">Every killer's power counter. Each one counts a different action, so compare a killer with itself over time rather than with the others.</p>
+        <div class="scroll" id="p-list"></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="spot" id="k-spot" style="--c: var(--killer)"></div>
+        <div class="card" style="--c: var(--killer)">
+          <div class="card-head"><h2><i></i>Per-killer results</h2></div>
+          <p class="hint">Deduced from 15-minute windows where only one killer's power moved and no survivor games were mixed in.</p>
+          <div class="tbl-wrap" id="k-per"></div>
         </div>
       </div>
-      <p class="lede">Each killer's power counter from Steam, e.g. chainsaw hits for The Hillbilly. Counters measure different actions, so compare a killer with itself over time rather than across killers.</p>
-      <div class="bars" id="power-bars"></div>
-      <button class="more" id="power-more">Show all killers</button>
     </div>
+    <div class="groups" id="k-groups"></div>
   </section>
 
-  <section class="panel" id="sessions">
-    <h2><i></i>Tracked play windows</h2>
-    <p class="lede">Every 15 minutes the collector compares Steam's counters with the previous reading. Whichever power counters moved show which killer you played; kills and escapes in that window are credited to it when only one killer was played.</p>
-    <div id="per-killer"></div>
-    <div class="tbl-wrap" style="margin-top:18px"><table id="sess-table"></table></div>
-  </section>
-
-  <section class="grid2">
-    <div class="panel" style="--c: var(--killer)"><h2><i></i>Killer counters</h2><div class="facts" id="killer-facts"></div></div>
-    <div class="panel" style="--c: var(--surv)"><h2><i></i>Survivor counters</h2><div class="facts" id="surv-facts"></div></div>
+  <!-- SURVIVOR -->
+  <section class="view" id="v-survivor" aria-labelledby="tab-survivor">
+    <div class="tiles" id="s-tiles"></div>
+    <div class="groups" id="s-groups"></div>
+    <div class="card" style="--c: var(--surv)">
+      <div class="card-head"><h2><i></i>Recent survivor games</h2></div>
+      <div class="tbl-wrap" id="s-windows"></div>
+    </div>
   </section>
 
   <footer>
-    <div>Source: Steam Web API (Dead by Daylight, app 381210), read every 15 minutes by a GitHub Actions job. The page reloads itself every 10 minutes. Only matches played on this Steam account count. Counters are lifetime totals since the account started playing, across all game modes.</div>
-    <div>Green "+" figures are what changed in the last 30 days of tracking. Tracking began <b id="since">—</b>.</div>
+    <div>Data: Steam Web API (Dead by Daylight, app 381210), read about every 15 minutes by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page reloads itself every 10 minutes.</div>
+    <div>Green figures show what changed in the last 30 days of tracking, which began <b id="since">—</b>.</div>
   </footer>
 </div>
 <div class="tip" id="tip"></div>
@@ -157,7 +246,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   try {
     [SNAP, SESS] = await Promise.all([fetch('data/snap.json' + bust).then(r => r.json()), fetch('data/sessions.json' + bust).then(r => r.json())]);
   } catch (e) {
-    document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty">Could not load the stats data. Try reloading the page.</div>');
+    document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty" style="margin-top:28px">Could not load the stats data. Try reloading the page.</div>');
     return;
   }
   SESS = SESS.slice().sort((a, b) => a.t1 < b.t1 ? -1 : 1);
@@ -167,8 +256,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   const big = n => n >= 1e6 ? fmt(n / 1e6, 1) + 'M' : fmt(n);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const when = iso => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const hhmm = iso => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-  // Power counters: [stat, killer, what it counts]
   const POWERS = [
     ['TrapPickup', 'The Trapper', 'Survivors picked up from traps'],
     ['UncloakAttack', 'The Wraith', 'Hits after uncloaking'],
@@ -214,162 +303,206 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     ['Chapter40_Slasher_Stat1', 'The Slasher', 'Survivors pinned to a wall'],
     ['Chapter41_Slasher_Stat1', 'The Judgment', 'Power counter (Will of the Gods)']
   ];
-  const KILLER_FACTS = [
-    ['SacrificedCampers', 'Survivors sacrificed'], ['KilledCampers', 'Survivors killed (Mori)'], ['SlasherMaxScoreByCategory', 'Perfect games'],
-    ['Chapter13_Slasher_Stat1', 'Hatches closed'], ['Chapter13_Slasher_Stat2', 'Downs near a dropped pallet'], ['Chapter9_Slasher_Stat1', 'Hits after a pallet drop'],
-    ['Chapter20_Slasher_Stat2', 'Hooks before the first generator'], ['DLC9_Slasher_Stat1', 'Gens damaged while a survivor is hooked'], ['Chapter22_Slasher_Stat2', 'Survivors found with Killer Instinct'],
-    ['Chapter27_Slasher_Stat2', 'Screams caused'], ['Chapter25_Slasher_Stat2', 'Vaults during chases'], ['Chapter26_Slasher_Stat2', 'Hits on Hasted survivors'],
-    ['DLC7_Slasher_Stat2', 'Obsessions sacrificed'], ['DLC8_Slasher_Stat2', 'Sacrifices in the Endgame Collapse'], ['Chapter18_Slasher_Stat2', 'Hooks in the Endgame Collapse'],
-    ['Chapter11_Slasher_Stat1', 'All sacrificed before the last gen'], ['DLC6_Slasher_Stat2', 'Basement hooks'], ['Event1_Stat1', '3 survivors in the basement at once'],
-    ['Chapter10_Slasher_Stat1', 'Hits while carrying a survivor'], ['Chapter19_Slasher_Stat2', 'Downs while carrying a survivor'], ['Chapter14_Slasher_Stat1', 'Hooks while 3 others are injured'],
-    ['Chapter16_Slasher_Stat2', 'Downs on Oblivious survivors'], ['Chapter17_Slasher_Stat2', 'Downs on Exposed survivors'], ['Chapter21_Slasher_Stat2', 'Oblivious applied'],
-    ['Chapter28_Slasher_Stat2', 'Hits on Hindered survivors'], ['Chapter29_Slasher_Stat2', 'Hits on item holders'], ['Chapter30_Slasher_Stat2', 'Special attacks while Undetectable'],
-    ['Chapter23_Slasher_Stat2', 'Gens damaged while Undetectable'], ['Chapter24_Slasher_Stat2', 'Survivors grabbed from lockers'], ['Chapter12_Slasher_Stat1', 'Survivors grabbed off generators'],
-    ['Chapter40_Slasher_Stat2', 'Downs soon after breaking a pallet/wall'], ['Chapter37_Slasher_Stat2', 'Hits after vaulting in a chase'], ['Chapter34_Slasher_Stat1', 'Metres fallen'],
-    ['SlasherFullLoadout', 'Trials with a full loadout'], ['BurnOffering_UltraRare', 'Ebony Mori offerings used']
+  const K_GROUPS = [
+    ['Kills', [['SacrificedCampers', 'Survivors sacrificed'], ['KilledCampers', 'Killed by Mori'], ['DLC7_Slasher_Stat2', 'Obsessions sacrificed'], ['DLC8_Slasher_Stat2', 'Sacrificed in the Endgame Collapse'], ['Chapter11_Slasher_Stat1', 'All sacrificed before the last gen'], ['SlasherMaxScoreByCategory', 'Perfect games'], ['BurnOffering_UltraRare', 'Ebony Mori offerings used']]],
+    ['Hooks', [['Chapter20_Slasher_Stat2', 'Hooks before the first generator'], ['Chapter14_Slasher_Stat1', 'Hooks while 3 others are injured'], ['Chapter18_Slasher_Stat2', 'Hooks in the Endgame Collapse'], ['DLC6_Slasher_Stat2', 'Basement hooks'], ['Event1_Stat1', '3 survivors in the basement at once']]],
+    ['Chase', [['Chapter13_Slasher_Stat2', 'Downs near a dropped pallet'], ['Chapter9_Slasher_Stat1', 'Hits after a pallet drop'], ['Chapter25_Slasher_Stat2', 'Vaults during chases'], ['Chapter37_Slasher_Stat2', 'Hits after vaulting in a chase'], ['Chapter40_Slasher_Stat2', 'Downs soon after breaking a pallet or wall'], ['Chapter10_Slasher_Stat1', 'Hits while carrying a survivor'], ['Chapter19_Slasher_Stat2', 'Downs while carrying a survivor'], ['Chapter26_Slasher_Stat2', 'Hits on Hasted survivors'], ['Chapter28_Slasher_Stat2', 'Hits on Hindered survivors'], ['Chapter17_Slasher_Stat2', 'Downs on Exposed survivors'], ['Chapter16_Slasher_Stat2', 'Downs on Oblivious survivors'], ['Chapter29_Slasher_Stat2', 'Hits on item holders']]],
+    ['Pressure', [['DLC9_Slasher_Stat1', 'Gens damaged while a survivor is hooked'], ['Chapter23_Slasher_Stat2', 'Gens damaged while Undetectable'], ['Chapter13_Slasher_Stat1', 'Hatches closed'], ['Chapter12_Slasher_Stat1', 'Survivors grabbed off generators'], ['Chapter24_Slasher_Stat2', 'Survivors grabbed from lockers'], ['Chapter22_Slasher_Stat2', 'Survivors found with Killer Instinct'], ['Chapter21_Slasher_Stat2', 'Oblivious applied'], ['Chapter30_Slasher_Stat2', 'Special attacks while Undetectable'], ['Chapter27_Slasher_Stat2', 'Screams caused'], ['Chapter34_Slasher_Stat1', 'Metres fallen'], ['SlasherFullLoadout', 'Trials with a full loadout']]]
   ];
-  const SURV_FACTS = [
-    ['Escape', 'Escapes'], ['GeneratorPct_float', 'Generators repaired'], ['HealPct_float', 'Health states healed'],
-    ['SkillCheckSuccess', 'Successful skill checks'], ['UnhookOrHeal', 'Unhooks and saves'], ['EscapeThroughHatch', 'Hatch escapes'],
-    ['EscapeKO', 'Escapes while dying'], ['Chapter9_Camper_Stat1', 'Self-unhooks'], ['Chapter12_Camper_Stat1', 'Wiggled free'],
-    ['Chapter18_Camper_Stat1', 'Pallet saves'], ['Chapter19_Camper_Stat1', 'Chases escaped after a pallet stun'], ['Chapter19_Camper_Stat2', 'Attacks and projectiles dodged'],
-    ['Camper8_Stat2', 'Vaults while chased'], ['DLC9_Camper_Stat1', 'Attacks evaded by vaulting'], ['Chapter22_Camper_Stat1', 'Chases escaped injured after a hit'],
-    ['HitNearHook', 'Protection hits for unhooked survivors'], ['Chapter14_Camper_Stat1', 'Protection hits during carries'], ['Chapter15_Camper_Stat1', 'Dying survivors healed'],
-    ['DLC3_Camper_Stat1', 'Hex totems cleansed'], ['Chapter21_Camper_Stat1', 'Hex totems blessed'], ['DLC7_Camper_Stat1', 'Chests opened'],
-    ['DLC7_Camper_Stat2', 'Exit gates opened'], ['Chapter10_Camper_Stat1', 'Hooks sabotaged'], ['Camper40_Stat2', 'Flashlight blinds'],
-    ['Camper38_Stat1', 'Recovered from dying'], ['Camper38_Stat2', 'Screams'], ['Camper40_Stat1', 'Great skill checks while injured'],
-    ['Chapter26_Camper_Stat1', 'Killer aura revealed'], ['Chapter24_Camper_Stat1', 'Chases escaped in a locker'], ['CamperFullLoadout', 'Trials with a full loadout']
+  const S_GROUPS = [
+    ['Objectives', [['GeneratorPct_float', 'Generators repaired'], ['Camper8_Stat1', 'Damaged generators repaired'], ['SkillCheckSuccess', 'Successful skill checks'], ['Camper40_Stat1', 'Great skill checks while injured'], ['DLC3_Camper_Stat1', 'Hex totems cleansed'], ['Chapter21_Camper_Stat1', 'Hex totems blessed'], ['DLC7_Camper_Stat2', 'Exit gates opened'], ['DLC7_Camper_Stat1', 'Chests opened'], ['Chapter10_Camper_Stat1', 'Hooks sabotaged']]],
+    ['Altruism', [['HealPct_float', 'Health states healed'], ['UnhookOrHeal', 'Unhooks and saves'], ['UnhookOrHeal_PostExit', 'Saves in the Endgame Collapse'], ['Chapter15_Camper_Stat1', 'Dying survivors healed'], ['HitNearHook', 'Protection hits for unhooked survivors'], ['Chapter14_Camper_Stat1', 'Protection hits during carries'], ['Chapter18_Camper_Stat1', 'Pallet saves'], ['Camper40_Stat2', 'Flashlight blinds']]],
+    ['Survival', [['Escape', 'Escapes'], ['EscapeThroughHatch', 'Hatch escapes'], ['EscapeKO', 'Escapes while dying'], ['Chapter9_Camper_Stat1', 'Self-unhooks'], ['Chapter12_Camper_Stat1', 'Wiggled free'], ['Camper38_Stat1', 'Recovered from dying']]],
+    ['Chase', [['Camper8_Stat2', 'Vaults while chased'], ['DLC9_Camper_Stat1', 'Attacks evaded by vaulting'], ['Chapter19_Camper_Stat2', 'Attacks and projectiles dodged'], ['Chapter19_Camper_Stat1', 'Chases escaped after a pallet stun'], ['Chapter22_Camper_Stat1', 'Chases escaped injured after a hit'], ['Chapter24_Camper_Stat1', 'Chases escaped in a locker'], ['Chapter26_Camper_Stat1', 'Killer aura revealed'], ['Camper38_Stat2', 'Screams']]]
   ];
-  const KILLER_SIGNS = ['KilledCampers', 'SacrificedCampers', 'SlasherFullLoadout', 'SlasherMaxScoreByCategory', ...POWERS.map(p => p[0]), ...KILLER_FACTS.map(f => f[0])];
-  const SURV_SIGNS = ['Escape', 'GeneratorPct_float', 'HealPct_float', 'UnhookOrHeal', 'CamperFullLoadout', 'Camper8_Stat2', 'Chapter19_Camper_Stat2'];
+  const KILLER_SIGNS = ['KilledCampers', 'SacrificedCampers', 'SlasherFullLoadout', ...POWERS.map(p => p[0]), ...K_GROUPS.flatMap(g => g[1].map(f => f[0]))];
+  const SURV_SIGNS = ['Escape', 'GeneratorPct_float', 'HealPct_float', 'UnhookOrHeal', 'CamperFullLoadout', 'Camper8_Stat2', 'Chapter19_Camper_Stat2', 'DLC7_Camper_Stat1'];
 
-  // 30-day deltas from tracked windows
   const cutoff = Date.now() - 30 * 864e5;
+  const recentS = SESS.filter(w => new Date(w.t1).getTime() >= cutoff);
   const d30 = {};
-  for (const w of SESS) if (new Date(w.t1).getTime() >= cutoff) for (const k in w.d) d30[k] = (d30[k] || 0) + w.d[k];
-  const pt30 = SESS.filter(w => new Date(w.t1).getTime() >= cutoff).reduce((a, w) => a + (w.pt || 0), 0);
+  for (const w of recentS) for (const k in w.d) d30[k] = (d30[k] || 0) + w.d[k];
+  const pt30 = recentS.reduce((a, w) => a + (w.pt || 0), 0);
 
-  $('pname').textContent = SNAP.name || 'Lenny';
-  $('synced').textContent = when(SNAP.t);
-  if (SNAP.ingame) { const p = el('span', 'pill on', 'In a game at last sync'); $('ingame').append(p); }
-  $('since').textContent = SESS.length ? when(SESS[0].t0) : when(SNAP.t);
-
-  // Strip
-  const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
-  const tiles = [
-    ['Hours played', fmt(SNAP.pt / 60), `${fmt(SNAP.p2 / 60, 1)} h in the last 2 weeks`, ''],
-    ['Bloodpoints', big(S.BloodwebPoints), `Prestige ${fmt(S.BloodwebMaxPrestigeLevel)} reached`, ''],
-    ['Kills', fmt(kills), `${fmt(S.SacrificedCampers)} sacrificed · ${fmt(S.KilledCampers)} by Mori`, 'k-c'],
-    ['Escapes', fmt(S.Escape), `${fmt(S.EscapeThroughHatch)} through the hatch`, 's-c'],
-    ['Generators', fmt(S.GeneratorPct_float), 'repaired as survivor', 's-c'],
-    ['Skill checks', big(S.SkillCheckSuccess), 'hit successfully', 's-c']
-  ];
-  for (const [k, v, s, c] of tiles) { const t = el('div', 'tile ' + c); t.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s)); $('strip').append(t); }
-
-  // Powers
-  const tip = $('tip');
-  const showTip = (e, text) => { tip.textContent = text; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; };
-  const hideTip = () => { tip.style.opacity = 0; };
-  const rows = POWERS.map(([k, killer, what]) => ({ k, killer, what, v: S[k] || 0, d: d30[k] || 0 }));
-  let sortBy = 'life', showAll = false;
-  function renderPowers() {
-    const list = rows.slice().sort((a, b) => sortBy === 'life' ? b.v - a.v : (b.d - a.d) || (b.v - a.v));
-    const shown = showAll ? list : list.slice(0, 12);
-    const max = Math.max(...shown.map(r => sortBy === 'life' ? r.v : r.d), 1);
-    const box = $('power-bars'); box.replaceChildren();
-    for (const r of shown) {
-      const val = sortBy === 'life' ? r.v : r.d;
-      const b = el('div', 'bar'); b.style.setProperty('--c', 'var(--killer)');
-      const n = el('div', 'n', r.killer); n.append(el('small', null, r.what));
-      const tr = el('div', 'track'); const f = el('div', 'fill'); f.style.width = (val / max * 100) + '%'; tr.append(f);
-      if (sortBy === 'life' && r.d) tr.append(el('span', 'delta num', '+' + fmt(r.d)));
-      b.append(n, tr, el('div', 'v num', fmt(val)));
-      b.addEventListener('pointermove', e => showTip(e, `${r.killer} · ${r.what}: ${fmt(r.v)} lifetime, +${fmt(r.d)} in the last 30 days of tracking`));
-      b.addEventListener('pointerleave', hideTip);
-      box.append(b);
-    }
-    if (sortBy === '30' && !rows.some(r => r.d)) { const e = el('div', 'empty', 'No power use tracked yet. This fills in after your next games.'); box.replaceChildren(e); }
-    $('power-more').textContent = showAll ? 'Show top 12' : `Show all ${rows.length} killers`;
-    $('sort-life').setAttribute('aria-pressed', sortBy === 'life'); $('sort-30').setAttribute('aria-pressed', sortBy === '30');
-  }
-  $('sort-life').onclick = () => { sortBy = 'life'; renderPowers(); };
-  $('sort-30').onclick = () => { sortBy = '30'; renderPowers(); };
-  $('power-more').onclick = () => { showAll = !showAll; renderPowers(); };
-  renderPowers();
-
-  // Top card: most used recently if tracked, else lifetime
-  const recentTop = rows.slice().sort((a, b) => b.d - a.d)[0];
-  const lifeTop = rows.slice().sort((a, b) => b.v - a.v)[0];
-  const top = recentTop && recentTop.d > 0 ? recentTop : lifeTop;
-  const tc = $('topcard');
-  const head = el('div'); head.append(el('div', 'tag', recentTop && recentTop.d > 0 ? 'Most-used power · last 30 days' : 'Most-used power · lifetime'), el('div', 'name', top.killer));
-  const body = el('div'); body.append(el('div', 'big num', fmt(recentTop && recentTop.d > 0 ? top.d : top.v)), el('div', 'what', top.what.toLowerCase()));
-  tc.append(head, body);
-
-  // Sessions
   function classify(w) {
     const killers = POWERS.filter(p => w.d[p[0]] > 0).map(p => p[1]);
     const asK = killers.length > 0 || KILLER_SIGNS.some(k => w.d[k] > 0);
     const asS = SURV_SIGNS.some(k => w.d[k] > 0);
-    return { killers, asK, asS, kills: (w.d.KilledCampers || 0) + (w.d.SacrificedCampers || 0), esc: w.d.Escape || 0, gens: w.d.GeneratorPct_float || 0 };
-  }
-  const tbl = $('sess-table');
-  const recent = SESS.slice().reverse().slice(0, 40);
-  if (!recent.length) {
-    const wrap = tbl.parentElement; wrap.replaceChildren(el('div', 'empty', 'No play windows tracked yet. The first reading was taken at ' + when(SNAP.t) + '; the next sync after you play will add a row here.'));
-  } else {
-    const thead = el('thead'); const hr = el('tr');
-    for (const [h, r] of [['Window', 0], ['Played', 1], ['Role', 0], ['Killers detected', 0], ['Kills', 1], ['Escapes', 1], ['Gens', 1]]) hr.append(el('th', r ? 'r' : null, h));
-    thead.append(hr); tbl.append(thead);
-    const tb = el('tbody');
-    for (const w of recent) {
-      const c = classify(w), tr = el('tr');
-      tr.append(el('td', null, `${when(w.t0)} → ${new Date(w.t1).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`));
-      tr.append(el('td', 'r num', w.pt ? fmt(w.pt / 60, 1) + ' h' : '—'));
-      const role = el('td'); if (c.asK) role.append(el('span', 'chip k', 'Killer')); if (c.asS) role.append(el('span', 'chip s', 'Survivor')); if (!c.asK && !c.asS) role.append(el('span', 'chip m', 'Other'));
-      tr.append(role);
-      const kc = el('td'); if (c.killers.length) c.killers.forEach(k => kc.append(el('span', 'chip k', k))); else kc.textContent = c.asK ? 'unclear' : '—';
-      tr.append(kc, el('td', 'r num', c.kills ? fmt(c.kills) : '—'), el('td', 'r num', c.esc ? fmt(c.esc) : '—'), el('td', 'r num', c.gens ? fmt(c.gens, 1) : '—'));
-      tb.append(tr);
-    }
-    tbl.append(tb);
+    return { killers, asK, asS, kills: (w.d.KilledCampers || 0) + (w.d.SacrificedCampers || 0), esc: w.d.Escape || 0, gens: w.d.GeneratorPct_float || 0, heals: w.d.HealPct_float || 0 };
   }
 
-  // Per-killer deductions: windows where exactly one killer was detected and no survivor play
+  // Header
+  $('pname').textContent = SNAP.name || 'Lenny';
+  $('synced').textContent = when(SNAP.t);
+  if (SNAP.ingame) $('ingame').append(el('span', 'live', 'In a game'));
+  $('since').textContent = SESS.length ? when(SESS[0].t0) : when(SNAP.t);
+
+  const tip = $('tip');
+  const showTip = (e, text) => { tip.textContent = text; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; };
+  const hideTip = () => { tip.style.opacity = 0; };
+
+  function tiles(box, list) {
+    for (const [k, v, s, c, d] of list) {
+      const t = el('div', 'tile'); if (c) t.style.setProperty('--c', c);
+      t.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s));
+      if (d) t.append(el('div', 'd num', '+' + d));
+      $(box).append(t);
+    }
+  }
+  function factGroups(box, groups, color) {
+    for (const [title, list] of groups) {
+      const c = el('div', 'card'); c.style.setProperty('--c', color);
+      const h = el('div', 'card-head'); const h2 = el('h2'); h2.append(el('i'), document.createTextNode(title)); h.append(h2); c.append(h);
+      const f = el('div', 'facts');
+      for (const [k, label] of list) {
+        if (S[k] == null) continue;
+        const r = el('div', 'fact'); const b = el('b', 'num', fmt(S[k]));
+        if (d30[k]) b.append(el('small', null, '+' + fmt(d30[k], k.includes('float') ? 1 : 0)));
+        r.append(el('span', null, label), b); f.append(r);
+      }
+      c.append(f); $(box).append(c);
+    }
+  }
+  function windowsTable(box, rows, cols) {
+    const host = $(box);
+    if (!rows.length) { host.append(el('div', 'empty', 'Nothing tracked here yet. Rows appear after your next games.')); return; }
+    const t = el('table'); const th = el('thead'); const hr = el('tr');
+    for (const c of cols) hr.append(el('th', c.r ? 'r' : null, c.h));
+    th.append(hr); t.append(th); const tb = el('tbody');
+    for (const w of rows) { const c = classify(w); const tr = el('tr'); for (const col of cols) tr.append(col.td(w, c)); tb.append(tr); }
+    t.append(tb); host.append(t);
+  }
+  const tdText = (cls, text) => el('td', cls, text);
+  const colWhen = { h: 'When', td: w => tdText(null, `${when(w.t0)} – ${hhmm(w.t1)}`) };
+  const colPlayed = { h: 'Played', r: 1, td: w => tdText('r num', w.pt ? fmt(w.pt / 60, 1) + ' h' : '—') };
+
+  // OVERVIEW
+  const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
+  tiles('ov-tiles', [
+    ['Hours played', fmt(SNAP.pt / 60), `${fmt(SNAP.p2 / 60, 1)} h in the last 2 weeks`, 'var(--blood)', pt30 ? fmt(pt30 / 60, 1) + ' h' : ''],
+    ['Bloodpoints', big(S.BloodwebPoints), `${big(S.MaxBloodwebPointsOneCategory)} on one character`, 'var(--blood)', d30.BloodwebPoints ? big(d30.BloodwebPoints) : ''],
+    ['Highest prestige', fmt(S.BloodwebMaxPrestigeLevel), `${fmt(S.UnlockRanking)} pips earned`, 'var(--blood)', ''],
+    ['Mystery boxes', fmt(S.Event1_Stat3), `${fmt(S.Chapter17_Camper_Stat1)} items used up`, 'var(--blood)', d30.Event1_Stat3 ? fmt(d30.Event1_Stat3) : '']
+  ]);
+  const lifeTop = POWERS.map(p => ({ k: p[0], killer: p[1], what: p[2], v: S[p[0]] || 0, d: d30[p[0]] || 0 })).sort((a, b) => b.v - a.v);
+  const recentTop = lifeTop.slice().sort((a, b) => b.d - a.d)[0];
+  function spot(box, tag, name, stats) {
+    const s = $(box); const top = el('div'); top.append(el('div', 'tag', tag), el('div', 'name', name));
+    const row = el('div', 'row'); for (const [v, l] of stats) { const d = el('div'); d.append(el('b', 'num', v), el('span', null, l)); row.append(d); }
+    s.append(top, row);
+  }
+  const main = recentTop && recentTop.d > 0 ? recentTop : lifeTop[0];
+  spot('ov-spot', recentTop && recentTop.d > 0 ? 'Your killer lately' : 'Your signature killer', main.killer,
+    [[fmt(main.v), main.what.toLowerCase()], [fmt(kills), 'total kills'], [fmt(S.SacrificedCampers), 'sacrificed']]);
+  const vs = $('ov-versus');
+  for (const [k, c, v, s, href] of [
+    ['Killer', 'var(--killer)', fmt(kills), `kills · ${fmt(S.SlasherMaxScoreByCategory)} perfect games`, '#killer'],
+    ['Survivor', 'var(--surv)', fmt(S.Escape), `escapes · ${fmt(S.GeneratorPct_float)} gens repaired`, '#survivor']
+  ]) {
+    const a = el('a', 'side'); a.href = href; a.style.setProperty('--c', c);
+    a.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s), el('div', 'go', 'Open ' + k.toLowerCase() + ' stats →'));
+    vs.append(a);
+  }
+  const kSess = SESS.filter(w => classify(w).asK).length, sSess = SESS.filter(w => classify(w).asS).length;
+  if (SESS.length) {
+    const p = el('p', 'hint'); p.style.margin = '14px 0 0';
+    p.textContent = `Tracked so far: ${kSess} window${kSess === 1 ? '' : 's'} with killer games and ${sSess} with survivor games.`;
+    vs.after(p);
+  }
+  windowsTable('ov-windows', SESS.slice().reverse().slice(0, 15), [
+    colWhen, colPlayed,
+    { h: 'Role', td: (w, c) => { const td = el('td'); if (c.asK) td.append(el('span', 'chip k', 'Killer')); if (c.asS) td.append(el('span', 'chip s', 'Survivor')); if (!c.asK && !c.asS) td.append(el('span', 'chip m', 'Other')); return td; } },
+    { h: 'Killer', td: (w, c) => { const td = el('td'); if (c.killers.length) c.killers.forEach(k => td.append(el('span', 'chip k', k))); else td.textContent = c.asK ? 'unclear' : '—'; return td; } },
+    { h: 'Kills', r: 1, td: (w, c) => tdText('r num', c.kills ? fmt(c.kills) : '—') },
+    { h: 'Escapes', r: 1, td: (w, c) => tdText('r num', c.esc ? fmt(c.esc) : '—') }
+  ]);
+
+  // KILLER
+  tiles('k-tiles', [
+    ['Kills', fmt(kills), `${fmt(S.SacrificedCampers)} sacrificed · ${fmt(S.KilledCampers)} by Mori`, 'var(--killer)', (d30.SacrificedCampers || 0) + (d30.KilledCampers || 0) ? fmt((d30.SacrificedCampers || 0) + (d30.KilledCampers || 0)) : ''],
+    ['Perfect games', fmt(S.SlasherMaxScoreByCategory), '4,000 points in every category', 'var(--killer)', d30.SlasherMaxScoreByCategory ? fmt(d30.SlasherMaxScoreByCategory) : ''],
+    ['Hatches closed', fmt(S.Chapter13_Slasher_Stat1), `${fmt(S.Chapter11_Slasher_Stat1)} games won before the last gen`, 'var(--killer)', d30.Chapter13_Slasher_Stat1 ? fmt(d30.Chapter13_Slasher_Stat1) : ''],
+    ['Screams caused', fmt(S.Chapter27_Slasher_Stat2), `${fmt(S.Chapter22_Slasher_Stat2)} found with Killer Instinct`, 'var(--killer)', d30.Chapter27_Slasher_Stat2 ? fmt(d30.Chapter27_Slasher_Stat2) : '']
+  ]);
+  spot('k-spot', recentTop && recentTop.d > 0 ? 'Most-used power · 30 days' : 'Most-used power · lifetime', main.killer,
+    [[fmt(recentTop && recentTop.d > 0 ? main.d : main.v), main.what.toLowerCase()], [fmt(lifeTop.filter(p => p.v > 0).length), 'killers with power use']]);
+
+  let sortBy = 'life', query = '';
+  function renderPowers() {
+    const list = lifeTop.slice().sort((a, b) => sortBy === 'life' ? b.v - a.v : (b.d - a.d) || (b.v - a.v));
+    const max = Math.max(...list.map(r => sortBy === 'life' ? r.v : r.d), 1);
+    const box = $('p-list'); box.replaceChildren();
+    const q = query.trim().toLowerCase();
+    list.forEach((r, i) => {
+      if (q && !(r.killer.toLowerCase().includes(q) || r.what.toLowerCase().includes(q))) return;
+      const val = sortBy === 'life' ? r.v : r.d;
+      const row = el('div', 'prow' + (val === 0 ? ' zero' : ''));
+      const n = el('div', 'n'); n.append(el('b', null, r.killer), el('small', null, r.what));
+      const tr = el('div', 'track'); const f = el('div', 'f'); f.style.width = (val / max * 100) + '%'; tr.append(f);
+      const v = el('div', 'v num', fmt(val)); if (sortBy === 'life' && r.d) v.append(el('small', null, '+' + fmt(r.d)));
+      row.append(el('div', 'rk num', String(i + 1)), n, tr, v);
+      row.addEventListener('pointermove', e => showTip(e, `${r.killer} · ${r.what}: ${fmt(r.v)} lifetime · +${fmt(r.d)} in the last 30 days`));
+      row.addEventListener('pointerleave', hideTip);
+      box.append(row);
+    });
+    if (!box.children.length) box.append(el('div', 'empty', q ? 'No killer matches that search.' : 'No power use tracked yet.'));
+    $('p-life').setAttribute('aria-pressed', sortBy === 'life'); $('p-30').setAttribute('aria-pressed', sortBy === '30');
+  }
+  $('p-life').onclick = () => { sortBy = 'life'; renderPowers(); };
+  $('p-30').onclick = () => { sortBy = '30'; renderPowers(); };
+  $('p-search').oninput = e => { query = e.target.value; renderPowers(); };
+  renderPowers();
+
   const per = {};
   for (const w of SESS) {
     const c = classify(w);
     if (c.killers.length !== 1 || c.asS) continue;
-    const k = c.killers[0]; per[k] = per[k] || { windows: 0, min: 0, kills: 0, power: 0, what: '' };
-    const p = POWERS.find(x => x[1] === k);
-    per[k].windows++; per[k].min += w.pt || 0; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0; per[k].what = p[2];
+    const k = c.killers[0], p = POWERS.find(x => x[1] === k);
+    per[k] = per[k] || { windows: 0, min: 0, kills: 0, power: 0 };
+    per[k].windows++; per[k].min += w.pt || 0; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0;
   }
-  const pk = $('per-killer');
-  const list = Object.entries(per).sort((a, b) => b[1].min - a[1].min);
-  if (list.length) {
+  const perList = Object.entries(per).sort((a, b) => b[1].min - a[1].min);
+  if (!perList.length) $('k-per').append(el('div', 'empty', 'Play a few killer games and this table fills in by itself.'));
+  else {
     const t = el('table'); const th = el('thead'); const r0 = el('tr');
-    for (const [h, r] of [['Killer', 0], ['Clean windows', 1], ['Hours', 1], ['Kills', 1], ['Kills / hour', 1], ['Power uses', 1]]) r0.append(el('th', r ? 'r' : null, h));
+    for (const [h, r] of [['Killer', 0], ['Hours', 1], ['Kills', 1], ['Kills / h', 1], ['Power', 1]]) r0.append(el('th', r ? 'r' : null, h));
     th.append(r0); t.append(th); const tb = el('tbody');
-    for (const [k, v] of list) {
-      const tr = el('tr'); const h = v.min / 60;
-      tr.append(el('td', null, k), el('td', 'r num', fmt(v.windows)), el('td', 'r num', fmt(h, 1)), el('td', 'r num', fmt(v.kills)), el('td', 'r num', h > 0 ? fmt(v.kills / h, 1) : '—'), el('td', 'r num', fmt(v.power)));
+    for (const [k, v] of perList) {
+      const tr = el('tr'), h = v.min / 60;
+      tr.append(tdText(null, k), tdText('r num', fmt(h, 1)), tdText('r num', fmt(v.kills)), tdText('r num', h > 0 ? fmt(v.kills / h, 1) : '—'), tdText('r num', fmt(v.power)));
       tb.append(tr);
     }
-    t.append(tb);
-    const h3 = el('div', 'lede', 'Per-killer results from windows where only one killer was played (no survivor games mixed in):');
-    const w = el('div', 'tbl-wrap'); w.append(t); pk.append(h3, w);
+    t.append(tb); $('k-per').append(t);
   }
+  factGroups('k-groups', K_GROUPS, 'var(--killer)');
 
-  // Facts
-  function facts(box, list) {
-    for (const [k, label] of list) {
-      if (S[k] == null) continue;
-      const f = el('div', 'fact'); f.append(el('div', 'v num', fmt(S[k])), el('div', 'k', label));
-      if (d30[k]) f.append(el('div', 'd num', '+' + fmt(d30[k], k.includes('float') ? 1 : 0)));
-      $(box).append(f);
+  // SURVIVOR
+  tiles('s-tiles', [
+    ['Escapes', fmt(S.Escape), `${fmt(S.EscapeThroughHatch)} through the hatch`, 'var(--surv)', d30.Escape ? fmt(d30.Escape) : ''],
+    ['Generators', fmt(S.GeneratorPct_float), 'repaired in full', 'var(--surv)', d30.GeneratorPct_float ? fmt(d30.GeneratorPct_float, 1) : ''],
+    ['Heals', fmt(S.HealPct_float), `${fmt(S.UnhookOrHeal)} unhooks and saves`, 'var(--surv)', d30.HealPct_float ? fmt(d30.HealPct_float, 1) : ''],
+    ['Skill checks', big(S.SkillCheckSuccess), `${fmt(S.Camper40_Stat1)} great ones while injured`, 'var(--surv)', d30.SkillCheckSuccess ? fmt(d30.SkillCheckSuccess) : '']
+  ]);
+  factGroups('s-groups', S_GROUPS, 'var(--surv)');
+  windowsTable('s-windows', SESS.filter(w => classify(w).asS).reverse().slice(0, 15), [
+    colWhen, colPlayed,
+    { h: 'Escapes', r: 1, td: (w, c) => tdText('r num', c.esc ? fmt(c.esc) : '—') },
+    { h: 'Gens', r: 1, td: (w, c) => tdText('r num', c.gens ? fmt(c.gens, 1) : '—') },
+    { h: 'Heals', r: 1, td: (w, c) => tdText('r num', c.heals ? fmt(c.heals, 1) : '—') },
+    { h: 'Skill checks', r: 1, td: w => tdText('r num', w.d.SkillCheckSuccess ? fmt(w.d.SkillCheckSuccess) : '—') }
+  ]);
+
+  // Tabs
+  const VIEWS = ['overview', 'killer', 'survivor'];
+  function route() {
+    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+    for (const id of VIEWS) {
+      $('v-' + id).classList.toggle('on', id === v);
+      const a = $('tab-' + id); if (id === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     }
   }
-  facts('killer-facts', KILLER_FACTS); facts('surv-facts', SURV_FACTS);
+  window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0 }); });
+  route();
   setTimeout(() => location.reload(), 10 * 60 * 1000);
 })();
 </script>
