@@ -85,11 +85,25 @@ body::after { content: ""; position: fixed; inset: 0; z-index: 30; pointer-event
 .banner .facts-row b { display: block; font: 800 32px/1 var(--display); }
 .banner .facts-row span { color: var(--muted); font-size: 13px; }
 .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.gauge { text-decoration: none; color: inherit; display: grid; justify-items: center; gap: 6px; padding: 16px 10px; border-radius: 18px; background: rgba(0, 0, 0, .25); border: 1px solid var(--line); transition: transform .2s, border-color .2s; }
-.gauge:hover { transform: translateY(-3px); border-color: var(--gc); }
-.gauge svg { width: 100%; max-width: 170px; overflow: visible; }
-.gauge .lbl { font: 700 13px var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--gc); }
-.gauge .sub { color: var(--muted); font-size: 12.5px; text-align: center; }
+.gauge { position: relative; overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 16px; border-radius: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--gc) 16%, rgba(0,0,0,.35)), rgba(0,0,0,.35) 60%); border: 1px solid color-mix(in srgb, var(--gc) 28%, transparent); transition: transform .2s, border-color .2s; min-width: 0; }
+a.gauge:hover { transform: translateY(-3px); border-color: var(--gc); }
+.gauge::after { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--gc), transparent); }
+.gauge .lbl { font: 700 13px var(--cond); letter-spacing: .18em; text-transform: uppercase; color: var(--gc); }
+.gauge .val { font: 900 clamp(44px, 5vw, 58px)/.9 var(--display); letter-spacing: .01em; }
+.gauge .val small { font-size: .42em; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.gauge .val.none { color: #4a4f5c; }
+.gauge .sub { color: var(--muted); font-size: 12.5px; }
+.hooks { display: flex; gap: 6px; }
+.hooks .h { position: relative; width: 32px; height: 32px; color: rgba(255,255,255,.14); }
+.hooks .h svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hooks .h .fill { position: absolute; inset: 0; overflow: hidden; color: var(--gc); filter: drop-shadow(0 0 5px var(--gc)); }
+.pips { display: flex; gap: 4px; }
+.pips i { flex: 1; max-width: 16px; aspect-ratio: 1; height: auto; min-width: 8px; border-radius: 4px; background: rgba(255,255,255,.07); display: inline-block; }
+.pips i.w { background: var(--gc); box-shadow: 0 0 8px color-mix(in srgb, var(--gc) 60%, transparent); }
+.pips i.l { background: #6b2230; }
+.pips i.q { background: #5a4a1e; }
+.meter { position: relative; height: 8px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
+.meter b { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--gc) 40%, #000), var(--gc)); box-shadow: 0 0 10px var(--gc); width: 0; transition: width 1s cubic-bezier(.2,.7,.2,1); }
 @media (max-width: 880px) { .banner { grid-template-columns: 1fr; } }
 
 /* Cards */
@@ -428,6 +442,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   const fourK = kMatches.length ? kMatches.filter(w => classify(w).kills >= 4).length / kMatches.length * 100 : null;
   const escCount = sMatches.filter(w => (w.d.Escape || 0) > 0).length;
   const escRate = sMatches.length ? escCount / sMatches.length * 100 : null;
+  // recent survivor results for the pips: w = escaped, l = died, q = left early
+  const survForm = SESS.filter(w => { const c = classify(w); return c.asS && !c.asK && (w.single || w.dc); }).map(w => w.dc ? 'q' : (w.d.Escape || 0) > 0 ? 'w' : 'l');
   const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? '' : (w.endsWith('ch') ? 'es' : 's')}`;
   const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
   const lifeTop = POWERS.map(p => ({ k: p[0], killer: p[1], what: p[2], v: S[p[0]] || 0, d: d30[p[0]] || 0 })).sort((a, b) => b.v - a.v);
@@ -454,24 +470,33 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // Building blocks
   const NS = 'http://www.w3.org/2000/svg';
   const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const a in attrs) e.setAttribute(a, attrs[a]); if (parent) parent.append(e); return e; };
-  let gid = 0;
-  function gauge(value, label, sub, color, href) {
+  // Rate cards. viz: 'hooks' (average kills out of 4), 'pips' (recent results), or 'bar'.
+  function gauge(value, label, sub, color, href, viz = 'bar', extra) {
     const a = el(href ? 'a' : 'div', 'gauge'); if (href) a.href = href; a.style.setProperty('--gc', color);
-    const svg = svgEl('svg', { viewBox: '0 0 120 120', role: 'img', 'aria-label': `${label}: ${value == null ? 'no data yet' : fmt(value, 1) + '%'}` });
-    const id = 'gg' + (gid++);
-    const defs = svgEl('defs', {}, svg); const lg = svgEl('linearGradient', { id, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
-    svgEl('stop', { offset: 0, 'stop-color': color }, lg); svgEl('stop', { offset: 1, 'stop-color': color, 'stop-opacity': .45 }, lg);
-    const r = 50, c = 2 * Math.PI * r, arc = .78, v = value == null ? 0 : Math.max(0, Math.min(100, value)) / 100;
-    for (let i = 0; i <= 20; i++) { // tick marks around the arc
-      const ang = (135 + i * (270 / 20)) * Math.PI / 180, r1 = 59, r2 = i % 5 ? 56 : 54;
-      svgEl('line', { x1: 60 + r1 * Math.cos(ang), y1: 60 + r1 * Math.sin(ang), x2: 60 + r2 * Math.cos(ang), y2: 60 + r2 * Math.sin(ang), stroke: 'rgba(255,255,255,.18)', 'stroke-width': 1.2 }, svg);
+    a.append(el('div', 'lbl', label));
+    const v = el('div', 'val num' + (value == null ? ' none' : ''));
+    if (value == null) v.textContent = '—'; else { v.textContent = fmt(value, 1); v.append(el('small', null, '%')); v.classList.add('count'); }
+    a.append(v);
+    if (viz === 'hooks') {
+      const avg = value == null ? 0 : value / 25; // kills per match, 0–4
+      const row = el('div', 'hooks'); row.setAttribute('aria-hidden', 'true');
+      for (let i = 0; i < 4; i++) {
+        const h = el('span', 'h'); h.innerHTML = '<svg viewBox="0 0 48 48"><use href="#hook"/></svg>';
+        const f = el('span', 'fill'); f.innerHTML = '<svg viewBox="0 0 48 48"><use href="#hook"/></svg>';
+        f.style.width = Math.max(0, Math.min(1, avg - i)) * 100 + '%'; h.append(f); row.append(h);
+      }
+      a.append(row);
+    } else if (viz === 'pips') {
+      const row = el('div', 'pips'); row.setAttribute('aria-hidden', 'true');
+      const list = (extra || []).slice(-10);
+      for (let i = 0; i < 10; i++) { const r = list[i]; row.append(el('i', r == null ? '' : r)); }
+      a.append(row);
+    } else {
+      const m = el('div', 'meter'); const b = el('b'); m.append(b); a.append(m);
+      const w = value == null ? 0 : Math.max(0, Math.min(100, value));
+      setTimeout(() => { b.style.width = w + '%'; }, 80);
     }
-    svgEl('circle', { cx: 60, cy: 60, r, fill: 'none', stroke: 'rgba(255,255,255,.07)', 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-dasharray': `${c * arc} ${c}`, transform: 'rotate(135 60 60)' }, svg);
-    const fg = svgEl('circle', { cx: 60, cy: 60, r, fill: 'none', stroke: `url(#${id})`, 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-dasharray': `0 ${c}`, transform: 'rotate(135 60 60)', style: `filter: drop-shadow(0 0 6px ${color}); transition: stroke-dasharray 1.2s cubic-bezier(.2,.7,.2,1)` }, svg);
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) fg.setAttribute('stroke-dasharray', `${c * arc * v} ${c}`); else setTimeout(() => fg.setAttribute('stroke-dasharray', `${c * arc * v} ${c}`), 80);
-    const t = svgEl('text', { x: 60, y: 66, 'text-anchor': 'middle', fill: '#dde1ea', 'font-size': 30, 'font-weight': 800, 'font-family': 'Big Shoulders Display, sans-serif', class: 'num' }, svg);
-    t.textContent = value == null ? '—' : fmt(value, 1) + '%';
-    a.append(svg, el('div', 'lbl', label), el('div', 'sub', sub));
+    a.append(el('div', 'sub', sub));
     return a;
   }
   function banner(box, eyebrow, title, accent, text, facts, gauges) {
@@ -550,8 +575,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   const hours = SNAP.pt / 60;
   banner('ov-banner', 'Your record in the Fog', SNAP.name || 'Lenny', '', `${fmt(hours)} hours on Steam, ${big(S.BloodwebPoints)} Bloodpoints earned and prestige ${fmt(S.BloodwebMaxPrestigeLevel)} reached.`,
     [[fmt(kills), 'survivors killed'], [fmt(S.Escape), 'escapes'], [fmt(S.SkillCheckSuccess), 'skill checks hit']],
-    [gauge(killRate, 'Kill rate', kMatches.length ? plural(kMatches.length, 'tracked match') : 'after your next killer match', '#ff7038', '#killer'),
-     gauge(escRate, 'Escape rate', sMatches.length ? `${plural(escCount, 'escape')} in ${plural(sMatches.length, 'match')}` : 'after your next survivor match', '#7cc0ea', '#survivor')]);
+    [gauge(killRate, 'Kill rate', kMatches.length ? `${fmt(totalKillsTracked / kMatches.length, 1)} kills per match · ${plural(kMatches.length, 'match')}` : 'after your next killer match', '#ff7038', '#killer', 'hooks'),
+     gauge(escRate, 'Escape rate', sMatches.length ? `${plural(escCount, 'escape')} in ${plural(sMatches.length, 'match')}` : 'after your next survivor match', '#7cc0ea', '#survivor', 'pips', survForm)]);
   tiles('ov-tiles', [
     ['Hours played', fmt(hours), `${fmt(SNAP.p2 / 60, 1)} h in the last 2 weeks`, 'var(--blood)', pt30 ? fmt(pt30 / 60, 1) + ' h' : ''],
     ['Bloodpoints', big(S.BloodwebPoints), `${big(S.MaxBloodwebPointsOneCategory)} on one character`, 'var(--blood)', d30.BloodwebPoints ? big(d30.BloodwebPoints) : ''],
@@ -575,8 +600,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   banner('k-banner', recentTop && recentTop.d > 0 ? 'Your killer lately' : 'Your signature killer', main.killer.replace(/^The /, 'The'), '',
     `${fmt(main.v)} ${main.what.toLowerCase()} so far. ${fmt(lifeTop.filter(p => p.v > 0).length)} of ${POWERS.length} killers have seen play.`,
     [[fmt(kills), 'total kills'], [fmt(S.SacrificedCampers), 'sacrificed'], [fmt(S.KilledCampers), 'by Mori']],
-    [gauge(killRate, 'Kill rate', kMatches.length ? `${plural(totalKillsTracked, 'kill')} in ${plural(kMatches.length, 'match')}` : 'after your next killer match', '#ff7038'),
-     gauge(fourK, '4K rate', kMatches.length ? 'matches with every survivor dead' : 'after your next killer match', '#f2c35b')]);
+    [gauge(killRate, 'Kill rate', kMatches.length ? `${plural(totalKillsTracked, 'kill')} in ${plural(kMatches.length, 'match')}` : 'after your next killer match', '#ff7038', null, 'hooks'),
+     gauge(fourK, '4K rate', kMatches.length ? 'matches with every survivor dead' : 'after your next killer match', '#f2c35b', null, 'bar')]);
   // put "The" on its own line feel: keep name intact
   $('k-banner').querySelector('h2').textContent = main.killer;
   tiles('k-tiles', [
@@ -647,8 +672,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // SURVIVOR
   banner('s-banner', 'Survivor', 'Out of', 'the fog', `${fmt(S.Escape)} escapes, ${fmt(S.GeneratorPct_float)} generators repaired and ${fmt(S.UnhookOrHeal)} teammates saved.`,
     [[fmt(S.Escape), 'escapes'], [fmt(S.EscapeThroughHatch), 'through the hatch'], [fmt(S.Chapter9_Camper_Stat1), 'self-unhooks']],
-    [gauge(escRate, 'Escape rate', sMatches.length ? `${plural(escCount, 'escape')} in ${plural(sMatches.length, 'match')}` : 'after your next survivor match', '#7cc0ea'),
-     gauge(S.Escape ? S.EscapeThroughHatch / S.Escape * 100 : null, 'Hatch share', 'of all lifetime escapes', '#a98be6')]);
+    [gauge(escRate, 'Escape rate', sMatches.length ? `${plural(escCount, 'escape')} in ${plural(sMatches.length, 'match')} · last 10 shown` : 'after your next survivor match', '#7cc0ea', null, 'pips', survForm),
+     gauge(S.Escape ? S.EscapeThroughHatch / S.Escape * 100 : null, 'Hatch share', 'of all lifetime escapes', '#a98be6', null, 'bar')]);
   tiles('s-tiles', [
     ['Generators', fmt(S.GeneratorPct_float), 'repaired in full', 'var(--surv)', d30.GeneratorPct_float ? fmt(d30.GeneratorPct_float, 1) : ''],
     ['Heals', fmt(S.HealPct_float), `${fmt(S.UnhookOrHeal)} unhooks and saves`, 'var(--surv)', d30.HealPct_float ? fmt(d30.HealPct_float, 1) : ''],
