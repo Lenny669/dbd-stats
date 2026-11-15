@@ -502,7 +502,9 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       if (manual === 'escaped') m.d.Escape = (m.d.Escape || 0) + 1;
       if (/^[0-4]k$/.test(manual)) m.d.SacrificedCampers = (m.d.SacrificedCampers || 0) + Number(manual[0]);
     }
-    m.single = m.fine || (m.done && (CONFIRMED.has(m.t1) || m.manual)); // counts towards kill / escape rate
+    // Counts towards kill / escape rate: timed precisely, confirmed by you, or a match whose final
+    // score arrived late (its mid-match updates prove it was one match, even though its end time is fuzzy).
+    m.single = m.fine || (m.done && (CONFIRMED.has(m.t1) || m.manual || m.delayed));
   });
   SESS = matches.filter(m => !m.live || m.parts);
   const S = SNAP.s;
