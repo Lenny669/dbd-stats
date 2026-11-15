@@ -274,6 +274,7 @@ footer a { color: var(--fog); }
     let start = null;
     if (prev && ms(w.t1) - ms(prev.t1) <= 45 * 60000 && (!w.on || ms(w.on) <= ms(prev.t1))) start = ms(prev.t1);
     else if (w.on) start = ms(w.on);
+    w.fine = fine;
     w.len = fine && start != null ? Math.round((ms(w.t1) - start) / 60000) : null;
   });
   const S = SNAP.s;
@@ -357,6 +358,18 @@ footer a { color: var(--fog); }
     return { killers, asK, asS, kills: (w.d.KilledCampers || 0) + (w.d.SacrificedCampers || 0), esc: w.d.Escape || 0, gens: w.d.GeneratorPct_float || 0, heals: w.d.HealPct_float || 0 };
   }
 
+  // Kill rate / escape rate from single tracked matches (minute-precise readings only)
+  const kMatches = SESS.filter(w => { const c = classify(w); return w.fine && c.asK && !c.asS && c.killers.length <= 1; });
+  const sMatches = SESS.filter(w => { const c = classify(w); return w.fine && c.asS && !c.asK; });
+  const rates = list => {
+    const recent = list.filter(w => ms(w.t1) >= cutoff);
+    return { all: list, recent };
+  };
+  const kR = rates(kMatches), sR = rates(sMatches);
+  const killRate = l => l.length ? l.reduce((a, w) => a + classify(w).kills, 0) / (4 * l.length) * 100 : null;
+  const escRate = l => l.length ? l.filter(w => (w.d.Escape || 0) > 0).length / l.length * 100 : null;
+  const pctOr = (v, n) => v == null ? '—' : fmt(v, 1) + '%';
+
   // Header
   $('pname').textContent = SNAP.name || 'Lenny';
   $('synced').textContent = when(SNAP.t);
@@ -422,17 +435,17 @@ footer a { color: var(--fog); }
     [[fmt(main.v), main.what.toLowerCase()], [fmt(kills), 'total kills'], [fmt(S.SacrificedCampers), 'sacrificed']]);
   const vs = $('ov-versus');
   for (const [k, c, v, s, href] of [
-    ['Killer', 'var(--killer)', fmt(kills), `kills · ${fmt(S.SlasherMaxScoreByCategory)} perfect games`, '#killer'],
-    ['Survivor', 'var(--surv)', fmt(S.Escape), `escapes · ${fmt(S.GeneratorPct_float)} gens repaired`, '#survivor']
+    ['Killer · kill rate', 'var(--killer)', pctOr(killRate(kMatches)), `${fmt(kMatches.length)} tracked match${kMatches.length === 1 ? '' : 'es'} · ${fmt(kills)} lifetime kills`, '#killer'],
+    ['Survivor · escape rate', 'var(--surv)', pctOr(escRate(sMatches)), `${fmt(sMatches.length)} tracked match${sMatches.length === 1 ? '' : 'es'} · ${fmt(S.Escape)} lifetime escapes`, '#survivor']
   ]) {
     const a = el('a', 'side'); a.href = href; a.style.setProperty('--c', c);
-    a.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s), el('div', 'go', 'Open ' + k.toLowerCase() + ' stats →'));
+    a.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s), el('div', 'go', 'Open ' + k.split(' ')[0].toLowerCase() + ' stats →'));
     vs.append(a);
   }
-  const kSess = SESS.filter(w => classify(w).asK).length, sSess = SESS.filter(w => classify(w).asS).length;
+  const kSess = kMatches.length, sSess = sMatches.length;
   if (SESS.length) {
     const p = el('p', 'hint'); p.style.margin = '14px 0 0';
-    p.textContent = `Tracked so far: ${kSess} killer match${kSess === 1 ? '' : 'es'} and ${sSess} survivor match${sSess === 1 ? '' : 'es'}.`;
+    p.textContent = `Rates come from single matches caught minute by minute. Tracked so far: ${kSess} killer match${kSess === 1 ? '' : 'es'} and ${sSess} survivor match${sSess === 1 ? '' : 'es'}.`;
     vs.after(p);
   }
   windowsTable('ov-windows', SESS.slice().reverse().slice(0, 15), [
@@ -445,9 +458,9 @@ footer a { color: var(--fog); }
 
   // KILLER
   tiles('k-tiles', [
+    ['Kill rate', pctOr(killRate(kMatches)), kMatches.length ? `${fmt(kMatches.length)} tracked match${kMatches.length === 1 ? '' : 'es'} · ${fmt(kMatches.reduce((a, w) => a + classify(w).kills, 0))} kills` : 'appears after your first tracked killer match', 'var(--killer)', ''],
     ['Kills', fmt(kills), `${fmt(S.SacrificedCampers)} sacrificed · ${fmt(S.KilledCampers)} by Mori`, 'var(--killer)', (d30.SacrificedCampers || 0) + (d30.KilledCampers || 0) ? fmt((d30.SacrificedCampers || 0) + (d30.KilledCampers || 0)) : ''],
     ['Perfect games', fmt(S.SlasherMaxScoreByCategory), '4,000 points in every category', 'var(--killer)', d30.SlasherMaxScoreByCategory ? fmt(d30.SlasherMaxScoreByCategory) : ''],
-    ['Hatches closed', fmt(S.Chapter13_Slasher_Stat1), `${fmt(S.Chapter11_Slasher_Stat1)} games won before the last gen`, 'var(--killer)', d30.Chapter13_Slasher_Stat1 ? fmt(d30.Chapter13_Slasher_Stat1) : ''],
     ['Screams caused', fmt(S.Chapter27_Slasher_Stat2), `${fmt(S.Chapter22_Slasher_Stat2)} found with Killer Instinct`, 'var(--killer)', d30.Chapter27_Slasher_Stat2 ? fmt(d30.Chapter27_Slasher_Stat2) : '']
   ]);
   spot('k-spot', recentTop && recentTop.d > 0 ? 'Most-used power · 30 days' : 'Most-used power · lifetime', main.killer,
@@ -505,6 +518,7 @@ footer a { color: var(--fog); }
 
   // SURVIVOR
   tiles('s-tiles', [
+    ['Escape rate', pctOr(escRate(sMatches)), sMatches.length ? `${fmt(sMatches.filter(w => (w.d.Escape || 0) > 0).length)} escapes in ${fmt(sMatches.length)} tracked match${sMatches.length === 1 ? '' : 'es'}` : 'appears after your first tracked survivor match', 'var(--surv)', ''],
     ['Escapes', fmt(S.Escape), `${fmt(S.EscapeThroughHatch)} through the hatch`, 'var(--surv)', d30.Escape ? fmt(d30.Escape) : ''],
     ['Generators', fmt(S.GeneratorPct_float), 'repaired in full', 'var(--surv)', d30.GeneratorPct_float ? fmt(d30.GeneratorPct_float, 1) : ''],
     ['Heals', fmt(S.HealPct_float), `${fmt(S.UnhookOrHeal)} unhooks and saves`, 'var(--surv)', d30.HealPct_float ? fmt(d30.HealPct_float, 1) : ''],
