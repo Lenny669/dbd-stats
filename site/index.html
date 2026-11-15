@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lenny's DBD Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: lifetime strip -> killer powers ranking (the star) -> tracked sessions & per-killer deductions -> full killer / survivor counters. Single dark "fog" world. */
+:root {
+  --night: #0b0c0f;
+  --panel: #14161b;
+  --panel-2: #1b1e25;
+  --line: #2a2e37;
+  --fog: #c9ced8;
+  --muted: #868d9b;
+  --blood: #d11f3a;
+  --surv: #7fb4d6;
+  --killer: #e0673a;
+  --good: #6fd39a;
+  --display: "Big Shoulders Display", "Oswald", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--night);
+  background-image: radial-gradient(1200px 500px at 15% -10%, rgba(209,31,58,.14), transparent 60%),
+                    radial-gradient(900px 400px at 100% 0%, rgba(127,180,214,.08), transparent 60%);
+  background-repeat: no-repeat;
+  color: var(--fog);
+  font: 16px/1.5 var(--body);
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 40px) 56px; display: grid; gap: 28px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+h1 { font: 900 clamp(38px, 6vw, 64px)/0.9 var(--display); letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
+h1 span { color: var(--blood); }
+.sub { color: var(--muted); font-size: 14px; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.sub b { color: var(--fog); font-weight: 600; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--line); }
+.pill.on { color: var(--good); border-color: rgba(111,211,154,.4); }
+.pill.on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+h2 { font: 800 22px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+h2 i { width: 10px; height: 10px; border-radius: 2px; transform: rotate(45deg); display: inline-block; background: var(--c, var(--blood)); }
+.num { font-variant-numeric: tabular-nums; }
+.lede { color: var(--muted); font-size: 14px; margin: -6px 0 14px; max-width: 72ch; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.tile .v { font: 800 clamp(28px, 3.6vw, 40px)/1.05 var(--display); margin-top: 4px; }
+.tile .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.tile.k-c { border-top: 3px solid var(--killer); } .tile.s-c { border-top: 3px solid var(--surv); }
+
+.hero { display: grid; grid-template-columns: minmax(240px, 1fr) 2fr; gap: 20px; align-items: stretch; }
+@media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+.topcard { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-top: 3px solid var(--killer); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
+.topcard::after { content: ""; position: absolute; right: -50px; top: -50px; width: 200px; height: 200px; border-radius: 50%; background: var(--killer); opacity: .14; filter: blur(34px); }
+.topcard .tag { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--killer); font-weight: 600; }
+.topcard .name { font: 900 clamp(34px, 5vw, 52px)/1 var(--display); text-transform: uppercase; margin-top: 6px; }
+.topcard .big { font: 800 clamp(44px, 6vw, 64px)/1 var(--display); }
+.topcard .what { color: var(--muted); font-size: 14px; }
+
+.bars { display: grid; gap: 6px; }
+.bar { display: grid; grid-template-columns: minmax(120px, 170px) 1fr 70px; gap: 12px; align-items: center; font-size: 14px; cursor: default; }
+.bar .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .n small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { position: relative; height: 24px; background: var(--panel-2); border-radius: 4px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 4px; opacity: .85; }
+.bar .v { text-align: right; font-weight: 600; }
+.bar .delta { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--good); }
+.more { margin-top: 12px; font: 600 14px var(--body); color: var(--fog); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.more:focus-visible, .seg button:focus-visible { outline: 2px solid var(--fog); outline-offset: 2px; }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 4px; }
+.seg button { font: 600 13px var(--body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--blood); color: #fff; }
+.head-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.head-row h2 { margin: 0; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; background: var(--line); border-radius: 8px; overflow: hidden; }
+.fact { background: var(--panel-2); padding: 12px; }
+.fact .v { font: 800 22px/1.1 var(--display); }
+.fact .k { color: var(--muted); font-size: 12px; line-height: 1.3; margin-top: 2px; }
+.fact .d { color: var(--good); font-size: 12px; font-weight: 600; }
+
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.r, th.r { text-align: right; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; margin: 1px 4px 1px 0; }
+.chip.k { background: rgba(224,103,58,.15); color: var(--killer); }
+.chip.s { background: rgba(127,180,214,.15); color: var(--surv); }
+.chip.m { background: rgba(134,141,155,.18); color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; padding: 18px; border: 1px dashed var(--line); border-radius: 8px; }
+.tip { position: fixed; pointer-events: none; background: #000; border: 1px solid var(--line); color: var(--fog); font-size: 13px; padding: 6px 10px; border-radius: 6px; opacity: 0; transition: opacity .1s; z-index: 5; max-width: 320px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 6px; }
+@media (max-width: 520px) { .bar { grid-template-columns: 104px 1fr 56px; gap: 8px; font-size: 13px; } }
+@media (prefers-reduced-motion: no-preference) { .fill { transition: width .5s ease; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><b id="pname" style="font-weight:inherit">Lenny</b>'s <span>DBD</span> stats</h1>
+      <div class="sub"><span>Steam lifetime counters · last sync <b id="synced">—</b></span><span id="ingame"></span></div>
+    </div>
+  </header>
+
+  <section class="strip" id="strip"></section>
+
+  <section class="hero">
+    <div class="topcard" id="topcard"></div>
+    <div class="panel" id="powers" style="--c: var(--killer)">
+      <div class="head-row">
+        <h2><i></i>Killer powers</h2>
+        <div class="seg" role="group" aria-label="Sort powers">
+          <button id="sort-life" aria-pressed="true">Lifetime</button>
+          <button id="sort-30" aria-pressed="false">Last 30 days</button>
+        </div>
+      </div>
+      <p class="lede">Each killer's power counter from Steam, e.g. chainsaw hits for The Hillbilly. Counters measure different actions, so compare a killer with itself over time rather than across killers.</p>
+      <div class="bars" id="power-bars"></div>
+      <button class="more" id="power-more">Show all killers</button>
+    </div>
+  </section>
+
+  <section class="panel" id="sessions">
+    <h2><i></i>Tracked play windows</h2>
+    <p class="lede">Every 15 minutes the collector compares Steam's counters with the previous reading. Whichever power counters moved show which killer you played; kills and escapes in that window are credited to it when only one killer was played.</p>
+    <div id="per-killer"></div>
+    <div class="tbl-wrap" style="margin-top:18px"><table id="sess-table"></table></div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel" style="--c: var(--killer)"><h2><i></i>Killer counters</h2><div class="facts" id="killer-facts"></div></div>
+    <div class="panel" style="--c: var(--surv)"><h2><i></i>Survivor counters</h2><div class="facts" id="surv-facts"></div></div>
+  </section>
+
+  <footer>
+    <div>Source: Steam Web API (Dead by Daylight, app 381210), read every 15 minutes by a GitHub Actions job. The page reloads itself every 10 minutes. Only matches played on this Steam account count. Counters are lifetime totals since the account started playing, across all game modes.</div>
+    <div>Green "+" figures are what changed in the last 30 days of tracking. Tracking began <b id="since">—</b>.</div>
+  </footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+(async function () {
+  const bust = '?v=' + Date.now();
+  let SNAP, SESS;
+  try {
+    [SNAP, SESS] = await Promise.all([fetch('data/snap.json' + bust).then(r => r.json()), fetch('data/sessions.json' + bust).then(r => r.json())]);
+  } catch (e) {
+    document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty">Could not load the stats data. Try reloading the page.</div>');
+    return;
+  }
+  SESS = SESS.slice().sort((a, b) => a.t1 < b.t1 ? -1 : 1);
+  const S = SNAP.s;
+  const $ = id => document.getElementById(id);
+  const fmt = (n, d = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  const big = n => n >= 1e6 ? fmt(n / 1e6, 1) + 'M' : fmt(n);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const when = iso => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  // Power counters: [stat, killer, what it counts]
+  const POWERS = [
+    ['TrapPickup', 'The Trapper', 'Survivors picked up from traps'],
+    ['UncloakAttack', 'The Wraith', 'Hits after uncloaking'],
+    ['ChainsawHit', 'The Hillbilly', 'Chainsaw hits'],
+    ['SlasherChainAttack', 'The Nurse', 'Hits after a blink'],
+    ['SlasherTierIncrement', 'The Shape', 'Evil Within tier-ups'],
+    ['DLC3_Slasher_Stat1', 'The Hag', 'Phantasm traps triggered'],
+    ['DLC4_Slasher_Stat1', 'The Doctor', 'Shock Therapy hits'],
+    ['DLC5_Slasher_Stat1', 'The Huntress', 'Hatchets thrown'],
+    ['DLC6_Slasher_Stat1', 'The Cannibal', 'Chainsaw downs'],
+    ['DLC7_Slasher_Stat1', 'The Nightmare', 'Survivors pulled into the Dream World'],
+    ['DLC8_Slasher_Stat1', 'The Pig', 'Reverse Bear Traps placed'],
+    ['DLC9_Slasher_Stat2', 'The Clown', 'Downs on intoxicated survivors'],
+    ['Chapter9_Slasher_Stat2', 'The Spirit', 'Downs after Yamaoka\'s Haunting'],
+    ['Chapter10_Slasher_Stat2', 'The Legion', 'Downs on survivors with Deep Wound'],
+    ['Chapter11_Slasher_Stat2', 'The Plague', 'Downs at maximum Sickness'],
+    ['Chapter12_Slasher_Stat2', 'The Ghost Face', 'Downs on marked survivors'],
+    ['Chapter14_Slasher_Stat2', 'The Oni', 'Downs in Blood Fury'],
+    ['Chapter15_Slasher_Stat1', 'The Deathslinger', 'Downs while speared'],
+    ['Chapter16_Slasher_Stat1', 'The Executioner', 'Sent to Cages of Atonement'],
+    ['Chapter17_Slasher_Stat1', 'The Blight', 'Lethal Rush hits'],
+    ['Chapter18_Slasher_Stat1', 'The Twins', 'Downs with Victor clinging on'],
+    ['Chapter19_Slasher_Stat1', 'The Trickster', 'Max Laceration reached'],
+    ['Chapter20_Slasher_Stat1', 'The Nemesis', 'Downs on contaminated survivors'],
+    ['Chapter21_Slasher_Stat1', 'The Cenobite', 'Survivors bound by a possessed chain'],
+    ['Chapter22_Slasher_Stat1', 'The Artist', 'Downs with Dire Crows'],
+    ['Chapter23_Slasher_Stat1', 'The Onryō', 'Survivors condemned'],
+    ['Chapter24_Slasher_Stat1', 'The Dredge', 'Downs during Nightfall'],
+    ['Chapter25_Slasher_Stat1', 'The Mastermind', 'Survivors slammed into another'],
+    ['Chapter26_Slasher_Stat1', 'The Knight', 'Hits while a Guard hunts'],
+    ['Chapter27_Slasher_Stat1', 'The Skull Merchant', 'Downs on locked-on survivors'],
+    ['Chapter28_Slasher_Stat1', 'The Singularity', 'Downs right after teleporting'],
+    ['Chapter29_Slasher_Stat1', 'The Xenomorph', 'Tail Attack hits'],
+    ['Chapter30_Slasher_Stat1', 'The Good Guy', 'Hits right after a Scamper'],
+    ['Chapter31_Slasher_Stat1', 'The Unknown', 'Downs with UVX'],
+    ['Chapter32_Slasher_Stat1', 'The Lich', 'Hits after casting a spell'],
+    ['Chapter33_Slasher_Stat2', 'The Dark Lord', 'Hellfire hits'],
+    ['Chapter34_Slasher_Stat2', 'The Houndmaster', 'Injured while held by the dog'],
+    ['Chapter35_Slasher_Stat1', 'The Ghoul', 'Grab-attack hits'],
+    ['Chapter36_Slasher_Stat1', 'The Animatronic', 'Interrupts in the Security Office'],
+    ['Chapter37_Slasher_Stat1', 'The Krasue', 'Downs with Intestinal Whip'],
+    ['Chapter38_Slasher_Stat1', 'The First', 'Vine or Undergate hits'],
+    ['Chapter40_Slasher_Stat1', 'The Slasher', 'Survivors pinned to a wall'],
+    ['Chapter41_Slasher_Stat1', 'The Judgment', 'Power counter (Will of the Gods)']
+  ];
+  const KILLER_FACTS = [
+    ['SacrificedCampers', 'Survivors sacrificed'], ['KilledCampers', 'Survivors killed (Mori)'], ['SlasherMaxScoreByCategory', 'Perfect games'],
+    ['Chapter13_Slasher_Stat1', 'Hatches closed'], ['Chapter13_Slasher_Stat2', 'Downs near a dropped pallet'], ['Chapter9_Slasher_Stat1', 'Hits after a pallet drop'],
+    ['Chapter20_Slasher_Stat2', 'Hooks before the first generator'], ['DLC9_Slasher_Stat1', 'Gens damaged while a survivor is hooked'], ['Chapter22_Slasher_Stat2', 'Survivors found with Killer Instinct'],
+    ['Chapter27_Slasher_Stat2', 'Screams caused'], ['Chapter25_Slasher_Stat2', 'Vaults during chases'], ['Chapter26_Slasher_Stat2', 'Hits on Hasted survivors'],
+    ['DLC7_Slasher_Stat2', 'Obsessions sacrificed'], ['DLC8_Slasher_Stat2', 'Sacrifices in the Endgame Collapse'], ['Chapter18_Slasher_Stat2', 'Hooks in the Endgame Collapse'],
+    ['Chapter11_Slasher_Stat1', 'All sacrificed before the last gen'], ['DLC6_Slasher_Stat2', 'Basement hooks'], ['Event1_Stat1', '3 survivors in the basement at once'],
+    ['Chapter10_Slasher_Stat1', 'Hits while carrying a survivor'], ['Chapter19_Slasher_Stat2', 'Downs while carrying a survivor'], ['Chapter14_Slasher_Stat1', 'Hooks while 3 others are injured'],
+    ['Chapter16_Slasher_Stat2', 'Downs on Oblivious survivors'], ['Chapter17_Slasher_Stat2', 'Downs on Exposed survivors'], ['Chapter21_Slasher_Stat2', 'Oblivious applied'],
+    ['Chapter28_Slasher_Stat2', 'Hits on Hindered survivors'], ['Chapter29_Slasher_Stat2', 'Hits on item holders'], ['Chapter30_Slasher_Stat2', 'Special attacks while Undetectable'],
+    ['Chapter23_Slasher_Stat2', 'Gens damaged while Undetectable'], ['Chapter24_Slasher_Stat2', 'Survivors grabbed from lockers'], ['Chapter12_Slasher_Stat1', 'Survivors grabbed off generators'],
+    ['Chapter40_Slasher_Stat2', 'Downs soon after breaking a pallet/wall'], ['Chapter37_Slasher_Stat2', 'Hits after vaulting in a chase'], ['Chapter34_Slasher_Stat1', 'Metres fallen'],
+    ['SlasherFullLoadout', 'Trials with a full loadout'], ['BurnOffering_UltraRare', 'Ebony Mori offerings used']
+  ];
+  const SURV_FACTS = [
+    ['Escape', 'Escapes'], ['GeneratorPct_float', 'Generators repaired'], ['HealPct_float', 'Health states healed'],
+    ['SkillCheckSuccess', 'Successful skill checks'], ['UnhookOrHeal', 'Unhooks and saves'], ['EscapeThroughHatch', 'Hatch escapes'],
+    ['EscapeKO', 'Escapes while dying'], ['Chapter9_Camper_Stat1', 'Self-unhooks'], ['Chapter12_Camper_Stat1', 'Wiggled free'],
+    ['Chapter18_Camper_Stat1', 'Pallet saves'], ['Chapter19_Camper_Stat1', 'Chases escaped after a pallet stun'], ['Chapter19_Camper_Stat2', 'Attacks and projectiles dodged'],
+    ['Camper8_Stat2', 'Vaults while chased'], ['DLC9_Camper_Stat1', 'Attacks evaded by vaulting'], ['Chapter22_Camper_Stat1', 'Chases escaped injured after a hit'],
+    ['HitNearHook', 'Protection hits for unhooked survivors'], ['Chapter14_Camper_Stat1', 'Protection hits during carries'], ['Chapter15_Camper_Stat1', 'Dying survivors healed'],
+    ['DLC3_Camper_Stat1', 'Hex totems cleansed'], ['Chapter21_Camper_Stat1', 'Hex totems blessed'], ['DLC7_Camper_Stat1', 'Chests opened'],
+    ['DLC7_Camper_Stat2', 'Exit gates opened'], ['Chapter10_Camper_Stat1', 'Hooks sabotaged'], ['Camper40_Stat2', 'Flashlight blinds'],
+    ['Camper38_Stat1', 'Recovered from dying'], ['Camper38_Stat2', 'Screams'], ['Camper40_Stat1', 'Great skill checks while injured'],
+    ['Chapter26_Camper_Stat1', 'Killer aura revealed'], ['Chapter24_Camper_Stat1', 'Chases escaped in a locker'], ['CamperFullLoadout', 'Trials with a full loadout']
+  ];
+  const KILLER_SIGNS = ['KilledCampers', 'SacrificedCampers', 'SlasherFullLoadout', 'SlasherMaxScoreByCategory', ...POWERS.map(p => p[0]), ...KILLER_FACTS.map(f => f[0])];
+  const SURV_SIGNS = ['Escape', 'GeneratorPct_float', 'HealPct_float', 'UnhookOrHeal', 'CamperFullLoadout', 'Camper8_Stat2', 'Chapter19_Camper_Stat2'];
+
+  // 30-day deltas from tracked windows
+  const cutoff = Date.now() - 30 * 864e5;
+  const d30 = {};
+  for (const w of SESS) if (new Date(w.t1).getTime() >= cutoff) for (const k in w.d) d30[k] = (d30[k] || 0) + w.d[k];
+  const pt30 = SESS.filter(w => new Date(w.t1).getTime() >= cutoff).reduce((a, w) => a + (w.pt || 0), 0);
+
+  $('pname').textContent = SNAP.name || 'Lenny';
+  $('synced').textContent = when(SNAP.t);
+  if (SNAP.ingame) { const p = el('span', 'pill on', 'In a game at last sync'); $('ingame').append(p); }
+  $('since').textContent = SESS.length ? when(SESS[0].t0) : when(SNAP.t);
+
+  // Strip
+  const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
+  const tiles = [
+    ['Hours played', fmt(SNAP.pt / 60), `${fmt(SNAP.p2 / 60, 1)} h in the last 2 weeks`, ''],
+    ['Bloodpoints', big(S.BloodwebPoints), `Prestige ${fmt(S.BloodwebMaxPrestigeLevel)} reached`, ''],
+    ['Kills', fmt(kills), `${fmt(S.SacrificedCampers)} sacrificed · ${fmt(S.KilledCampers)} by Mori`, 'k-c'],
+    ['Escapes', fmt(S.Escape), `${fmt(S.EscapeThroughHatch)} through the hatch`, 's-c'],
+    ['Generators', fmt(S.GeneratorPct_float), 'repaired as survivor', 's-c'],
+    ['Skill checks', big(S.SkillCheckSuccess), 'hit successfully', 's-c']
+  ];
+  for (const [k, v, s, c] of tiles) { const t = el('div', 'tile ' + c); t.append(el('div', 'k', k), el('div', 'v num', v), el('div', 's', s)); $('strip').append(t); }
+
+  // Powers
+  const tip = $('tip');
+  const showTip = (e, text) => { tip.textContent = text; tip.style.opacity = 1; tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; };
+  const hideTip = () => { tip.style.opacity = 0; };
+  const rows = POWERS.map(([k, killer, what]) => ({ k, killer, what, v: S[k] || 0, d: d30[k] || 0 }));
+  let sortBy = 'life', showAll = false;
+  function renderPowers() {
+    const list = rows.slice().sort((a, b) => sortBy === 'life' ? b.v - a.v : (b.d - a.d) || (b.v - a.v));
+    const shown = showAll ? list : list.slice(0, 12);
+    const max = Math.max(...shown.map(r => sortBy === 'life' ? r.v : r.d), 1);
+    const box = $('power-bars'); box.replaceChildren();
+    for (const r of shown) {
+      const val = sortBy === 'life' ? r.v : r.d;
+      const b = el('div', 'bar'); b.style.setProperty('--c', 'var(--killer)');
+      const n = el('div', 'n', r.killer); n.append(el('small', null, r.what));
+      const tr = el('div', 'track'); const f = el('div', 'fill'); f.style.width = (val / max * 100) + '%'; tr.append(f);
+      if (sortBy === 'life' && r.d) tr.append(el('span', 'delta num', '+' + fmt(r.d)));
+      b.append(n, tr, el('div', 'v num', fmt(val)));
+      b.addEventListener('pointermove', e => showTip(e, `${r.killer} · ${r.what}: ${fmt(r.v)} lifetime, +${fmt(r.d)} in the last 30 days of tracking`));
+      b.addEventListener('pointerleave', hideTip);
+      box.append(b);
+    }
+    if (sortBy === '30' && !rows.some(r => r.d)) { const e = el('div', 'empty', 'No power use tracked yet. This fills in after your next games.'); box.replaceChildren(e); }
+    $('power-more').textContent = showAll ? 'Show top 12' : `Show all ${rows.length} killers`;
+    $('sort-life').setAttribute('aria-pressed', sortBy === 'life'); $('sort-30').setAttribute('aria-pressed', sortBy === '30');
+  }
+  $('sort-life').onclick = () => { sortBy = 'life'; renderPowers(); };
+  $('sort-30').onclick = () => { sortBy = '30'; renderPowers(); };
+  $('power-more').onclick = () => { showAll = !showAll; renderPowers(); };
+  renderPowers();
+
+  // Top card: most used recently if tracked, else lifetime
+  const recentTop = rows.slice().sort((a, b) => b.d - a.d)[0];
+  const lifeTop = rows.slice().sort((a, b) => b.v - a.v)[0];
+  const top = recentTop && recentTop.d > 0 ? recentTop : lifeTop;
+  const tc = $('topcard');
+  const head = el('div'); head.append(el('div', 'tag', recentTop && recentTop.d > 0 ? 'Most-used power · last 30 days' : 'Most-used power · lifetime'), el('div', 'name', top.killer));
+  const body = el('div'); body.append(el('div', 'big num', fmt(recentTop && recentTop.d > 0 ? top.d : top.v)), el('div', 'what', top.what.toLowerCase()));
+  tc.append(head, body);
+
+  // Sessions
+  function classify(w) {
+    const killers = POWERS.filter(p => w.d[p[0]] > 0).map(p => p[1]);
+    const asK = killers.length > 0 || KILLER_SIGNS.some(k => w.d[k] > 0);
+    const asS = SURV_SIGNS.some(k => w.d[k] > 0);
+    return { killers, asK, asS, kills: (w.d.KilledCampers || 0) + (w.d.SacrificedCampers || 0), esc: w.d.Escape || 0, gens: w.d.GeneratorPct_float || 0 };
+  }
+  const tbl = $('sess-table');
+  const recent = SESS.slice().reverse().slice(0, 40);
+  if (!recent.length) {
+    const wrap = tbl.parentElement; wrap.replaceChildren(el('div', 'empty', 'No play windows tracked yet. The first reading was taken at ' + when(SNAP.t) + '; the next sync after you play will add a row here.'));
+  } else {
+    const thead = el('thead'); const hr = el('tr');
+    for (const [h, r] of [['Window', 0], ['Played', 1], ['Role', 0], ['Killers detected', 0], ['Kills', 1], ['Escapes', 1], ['Gens', 1]]) hr.append(el('th', r ? 'r' : null, h));
+    thead.append(hr); tbl.append(thead);
+    const tb = el('tbody');
+    for (const w of recent) {
+      const c = classify(w), tr = el('tr');
+      tr.append(el('td', null, `${when(w.t0)} → ${new Date(w.t1).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`));
+      tr.append(el('td', 'r num', w.pt ? fmt(w.pt / 60, 1) + ' h' : '—'));
+      const role = el('td'); if (c.asK) role.append(el('span', 'chip k', 'Killer')); if (c.asS) role.append(el('span', 'chip s', 'Survivor')); if (!c.asK && !c.asS) role.append(el('span', 'chip m', 'Other'));
+      tr.append(role);
+      const kc = el('td'); if (c.killers.length) c.killers.forEach(k => kc.append(el('span', 'chip k', k))); else kc.textContent = c.asK ? 'unclear' : '—';
+      tr.append(kc, el('td', 'r num', c.kills ? fmt(c.kills) : '—'), el('td', 'r num', c.esc ? fmt(c.esc) : '—'), el('td', 'r num', c.gens ? fmt(c.gens, 1) : '—'));
+      tb.append(tr);
+    }
+    tbl.append(tb);
+  }
+
+  // Per-killer deductions: windows where exactly one killer was detected and no survivor play
+  const per = {};
+  for (const w of SESS) {
+    const c = classify(w);
+    if (c.killers.length !== 1 || c.asS) continue;
+    const k = c.killers[0]; per[k] = per[k] || { windows: 0, min: 0, kills: 0, power: 0, what: '' };
+    const p = POWERS.find(x => x[1] === k);
+    per[k].windows++; per[k].min += w.pt || 0; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0; per[k].what = p[2];
+  }
+  const pk = $('per-killer');
+  const list = Object.entries(per).sort((a, b) => b[1].min - a[1].min);
+  if (list.length) {
+    const t = el('table'); const th = el('thead'); const r0 = el('tr');
+    for (const [h, r] of [['Killer', 0], ['Clean windows', 1], ['Hours', 1], ['Kills', 1], ['Kills / hour', 1], ['Power uses', 1]]) r0.append(el('th', r ? 'r' : null, h));
+    th.append(r0); t.append(th); const tb = el('tbody');
+    for (const [k, v] of list) {
+      const tr = el('tr'); const h = v.min / 60;
+      tr.append(el('td', null, k), el('td', 'r num', fmt(v.windows)), el('td', 'r num', fmt(h, 1)), el('td', 'r num', fmt(v.kills)), el('td', 'r num', h > 0 ? fmt(v.kills / h, 1) : '—'), el('td', 'r num', fmt(v.power)));
+      tb.append(tr);
+    }
+    t.append(tb);
+    const h3 = el('div', 'lede', 'Per-killer results from windows where only one killer was played (no survivor games mixed in):');
+    const w = el('div', 'tbl-wrap'); w.append(t); pk.append(h3, w);
+  }
+
+  // Facts
+  function facts(box, list) {
+    for (const [k, label] of list) {
+      if (S[k] == null) continue;
+      const f = el('div', 'fact'); f.append(el('div', 'v num', fmt(S[k])), el('div', 'k', label));
+      if (d30[k]) f.append(el('div', 'd num', '+' + fmt(d30[k], k.includes('float') ? 1 : 0)));
+      $(box).append(f);
+    }
+  }
+  facts('killer-facts', KILLER_FACTS); facts('surv-facts', SURV_FACTS);
+  setTimeout(() => location.reload(), 10 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
