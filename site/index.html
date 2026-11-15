@@ -114,7 +114,7 @@ body {
 .seg button[aria-pressed="true"] { background: var(--killer); color: #fff; }
 .seg button:focus-visible { outline: 2px solid var(--fog); outline-offset: 1px; }
 .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.scroll { max-height: 520px; overflow-y: auto; padding-right: 6px; margin-right: -6px; scrollbar-width: thin; scrollbar-color: #3a3f4b transparent; mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); padding-bottom: 20px; }
+.scroll { max-height: 470px; overflow-y: auto; padding-right: 6px; margin-right: -6px; scrollbar-width: thin; scrollbar-color: #3a3f4b transparent; mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); padding-bottom: 20px; }
 .scroll::-webkit-scrollbar { width: 6px; } .scroll::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 3px; }
 .prow { display: grid; grid-template-columns: 28px minmax(130px, 200px) 1fr 76px; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 10px; transition: background .12s; }
 .prow:hover { background: rgba(255, 255, 255, .035); }
@@ -130,7 +130,10 @@ body {
 @media (max-width: 560px) { .prow { grid-template-columns: 22px 1fr 64px; } .prow .track { grid-column: 2 / 4; grid-row: 2; } }
 
 /* Fact groups */
-.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.groups { columns: 3 320px; column-gap: 20px; }
+.groups > .card { break-inside: avoid; margin-bottom: 20px; display: block; }
+.plist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); column-gap: 24px; }
+.g-even { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: stretch; }
 .facts { display: grid; gap: 2px; }
 .fact { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
 .fact:last-child { border-bottom: 0; }
@@ -186,8 +189,8 @@ footer a { color: var(--fog); }
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><h2><i></i>Recent play</h2></div>
-      <p class="hint">Every 15 minutes the collector compares your Steam counters with the previous reading. Each row is a stretch of time in which something changed.</p>
+      <div class="card-head"><h2><i></i>Recent matches</h2></div>
+      <p class="hint">The collector checks Steam every minute. Steam saves your counters when a match ends, so each row is one match. Length is measured from the previous match's end (or from launching the game), so it includes the lobby and queue.</p>
       <div class="tbl-wrap" id="ov-windows"></div>
     </div>
   </section>
@@ -195,8 +198,15 @@ footer a { color: var(--fog); }
   <!-- KILLER -->
   <section class="view" id="v-killer" aria-labelledby="tab-killer">
     <div class="tiles" id="k-tiles"></div>
-    <div class="grid g-hero">
+    <div class="grid g-even">
+      <div class="spot" id="k-spot" style="--c: var(--killer)"></div>
       <div class="card" style="--c: var(--killer)">
+        <div class="card-head"><h2><i></i>Per-killer results</h2></div>
+        <p class="hint">Built from single matches caught by the minute-by-minute collector. Kill rate = kills ÷ (4 × matches).</p>
+        <div class="tbl-wrap" id="k-per"></div>
+      </div>
+    </div>
+    <div class="card" style="--c: var(--killer)">
         <div class="card-head">
           <h2><i></i>Killer powers</h2>
           <div class="controls">
@@ -208,16 +218,7 @@ footer a { color: var(--fog); }
           </div>
         </div>
         <p class="hint">Every killer's power counter. Each one counts a different action, so compare a killer with itself over time rather than with the others.</p>
-        <div class="scroll" id="p-list"></div>
-      </div>
-      <div class="grid" style="align-content:start">
-        <div class="spot" id="k-spot" style="--c: var(--killer)"></div>
-        <div class="card" style="--c: var(--killer)">
-          <div class="card-head"><h2><i></i>Per-killer results</h2></div>
-          <p class="hint">Deduced from 15-minute windows where only one killer's power moved and no survivor games were mixed in.</p>
-          <div class="tbl-wrap" id="k-per"></div>
-        </div>
-      </div>
+        <div class="scroll"><div class="plist" id="p-list"></div></div>
     </div>
     <div class="groups" id="k-groups"></div>
   </section>
@@ -227,13 +228,13 @@ footer a { color: var(--fog); }
     <div class="tiles" id="s-tiles"></div>
     <div class="groups" id="s-groups"></div>
     <div class="card" style="--c: var(--surv)">
-      <div class="card-head"><h2><i></i>Recent survivor games</h2></div>
+      <div class="card-head"><h2><i></i>Recent survivor matches</h2></div>
       <div class="tbl-wrap" id="s-windows"></div>
     </div>
   </section>
 
   <footer>
-    <div>Data: Steam Web API (Dead by Daylight, app 381210), read about every 15 minutes by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page reloads itself every 10 minutes.</div>
+    <div>Data: Steam Web API (Dead by Daylight, app 381210), checked every minute by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page checks for new data every 2 minutes.</div>
     <div>Green figures show what changed in the last 30 days of tracking, which began <b id="since">—</b>.</div>
   </footer>
 </div>
@@ -241,15 +242,40 @@ footer a { color: var(--fog); }
 
 <script>
 (async function () {
-  const bust = '?v=' + Date.now();
+  const RAW = 'https://raw.githubusercontent.com/Lenny669/dbd-stats/main/site/data/';
+  const load = async name => {
+    const bust = '?v=' + Date.now();
+    try { const r = await fetch(RAW + name + bust, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (_) {}
+    return fetch('data/' + name + bust).then(r => r.json());
+  };
   let SNAP, SESS;
   try {
-    [SNAP, SESS] = await Promise.all([fetch('data/snap.json' + bust).then(r => r.json()), fetch('data/sessions.json' + bust).then(r => r.json())]);
+    [SNAP, SESS] = await Promise.all([load('snap.json'), load('sessions.json')]);
   } catch (e) {
     document.querySelector('.wrap').insertAdjacentHTML('afterbegin', '<div class="empty" style="margin-top:28px">Could not load the stats data. Try reloading the page.</div>');
     return;
   }
   SESS = SESS.slice().sort((a, b) => a.t1 < b.t1 ? -1 : 1);
+  // Steam sometimes saves one match in two steps a minute apart: merge those.
+  const ms = iso => new Date(iso).getTime();
+  const merged = [];
+  for (const w of SESS) {
+    const last = merged[merged.length - 1];
+    if (last && ms(w.t1) - ms(last.t1) <= 3 * 60000 && ms(w.t0) - ms(last.t1) <= 60000) {
+      for (const k in w.d) last.d[k] = (last.d[k] || 0) + w.d[k];
+      last.pt = (last.pt || 0) + (w.pt || 0); last.t1 = w.t1;
+    } else merged.push({ ...w, d: { ...w.d } });
+  }
+  SESS = merged;
+  // Match length: from the previous match end in the same play session, or from game launch.
+  SESS.forEach((w, i) => {
+    const prev = SESS[i - 1];
+    const fine = ms(w.t1) - ms(w.t0) <= 5 * 60000; // previous reading was recent, so the end time is precise
+    let start = null;
+    if (prev && ms(w.t1) - ms(prev.t1) <= 45 * 60000 && (!w.on || ms(w.on) <= ms(prev.t1))) start = ms(prev.t1);
+    else if (w.on) start = ms(w.on);
+    w.len = fine && start != null ? Math.round((ms(w.t1) - start) / 60000) : null;
+  });
   const S = SNAP.s;
   const $ = id => document.getElementById(id);
   const fmt = (n, d = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -373,8 +399,8 @@ footer a { color: var(--fog); }
     t.append(tb); host.append(t);
   }
   const tdText = (cls, text) => el('td', cls, text);
-  const colWhen = { h: 'When', td: w => tdText(null, `${when(w.t0)} – ${hhmm(w.t1)}`) };
-  const colPlayed = { h: 'Played', r: 1, td: w => tdText('r num', w.pt ? fmt(w.pt / 60, 1) + ' h' : '—') };
+  const colWhen = { h: 'Ended', td: w => tdText(null, w.len != null ? when(w.t1) : `${when(w.t0)} – ${hhmm(w.t1)}`) };
+  const colPlayed = { h: 'Length', r: 1, td: w => tdText('r num', w.len != null ? '~' + w.len + ' min' : (w.pt ? fmt(w.pt) + ' min' : '—')) };
 
   // OVERVIEW
   const kills = (S.KilledCampers || 0) + (S.SacrificedCampers || 0);
@@ -406,7 +432,7 @@ footer a { color: var(--fog); }
   const kSess = SESS.filter(w => classify(w).asK).length, sSess = SESS.filter(w => classify(w).asS).length;
   if (SESS.length) {
     const p = el('p', 'hint'); p.style.margin = '14px 0 0';
-    p.textContent = `Tracked so far: ${kSess} window${kSess === 1 ? '' : 's'} with killer games and ${sSess} with survivor games.`;
+    p.textContent = `Tracked so far: ${kSess} killer match${kSess === 1 ? '' : 'es'} and ${sSess} survivor match${sSess === 1 ? '' : 'es'}.`;
     vs.after(p);
   }
   windowsTable('ov-windows', SESS.slice().reverse().slice(0, 15), [
@@ -458,18 +484,19 @@ footer a { color: var(--fog); }
     const c = classify(w);
     if (c.killers.length !== 1 || c.asS) continue;
     const k = c.killers[0], p = POWERS.find(x => x[1] === k);
-    per[k] = per[k] || { windows: 0, min: 0, kills: 0, power: 0 };
-    per[k].windows++; per[k].min += w.pt || 0; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0;
+    per[k] = per[k] || { n: 0, lenSum: 0, lenN: 0, kills: 0, power: 0 };
+    per[k].n++; per[k].kills += c.kills; per[k].power += w.d[p[0]] || 0;
+    if (w.len != null && w.len <= 40) { per[k].lenSum += w.len; per[k].lenN++; }
   }
-  const perList = Object.entries(per).sort((a, b) => b[1].min - a[1].min);
+  const perList = Object.entries(per).sort((a, b) => b[1].n - a[1].n);
   if (!perList.length) $('k-per').append(el('div', 'empty', 'Play a few killer games and this table fills in by itself.'));
   else {
     const t = el('table'); const th = el('thead'); const r0 = el('tr');
-    for (const [h, r] of [['Killer', 0], ['Hours', 1], ['Kills', 1], ['Kills / h', 1], ['Power', 1]]) r0.append(el('th', r ? 'r' : null, h));
+    for (const [h, r] of [['Killer', 0], ['Matches', 1], ['Kills', 1], ['Kill rate', 1], ['Avg length', 1], ['Power', 1]]) r0.append(el('th', r ? 'r' : null, h));
     th.append(r0); t.append(th); const tb = el('tbody');
     for (const [k, v] of perList) {
-      const tr = el('tr'), h = v.min / 60;
-      tr.append(tdText(null, k), tdText('r num', fmt(h, 1)), tdText('r num', fmt(v.kills)), tdText('r num', h > 0 ? fmt(v.kills / h, 1) : '—'), tdText('r num', fmt(v.power)));
+      const tr = el('tr');
+      tr.append(tdText(null, k), tdText('r num', fmt(v.n)), tdText('r num', fmt(v.kills)), tdText('r num', fmt(v.kills / (4 * v.n) * 100, 1) + '%'), tdText('r num', v.lenN ? '~' + Math.round(v.lenSum / v.lenN) + ' min' : '—'), tdText('r num', fmt(v.power)));
       tb.append(tr);
     }
     t.append(tb); $('k-per').append(t);
@@ -503,7 +530,9 @@ footer a { color: var(--fog); }
   }
   window.addEventListener('hashchange', () => { route(); window.scrollTo({ top: 0 }); });
   route();
-  setTimeout(() => location.reload(), 10 * 60 * 1000);
+  setInterval(async () => {
+    try { const s = await load('snap.json'); if (s.t !== SNAP.t) location.reload(); } catch (_) {}
+  }, 2 * 60 * 1000);
 })();
 </script>
 </body>

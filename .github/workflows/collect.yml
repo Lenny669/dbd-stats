@@ -1,12 +1,16 @@
 name: Collect DBD stats
 
+# Each scheduled run polls Steam every minute for ~24 minutes and pushes every
+# change at once. Runs queue behind each other (concurrency below), so the
+# collector is effectively always on. The site is republished at the end of
+# each run; the page itself also reads fresh data straight from the repo.
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/20 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['site/**', 'collect.mjs', '.github/workflows/collect.yml']
+    paths: ['site/index.html', 'collect.mjs', '.github/workflows/collect.yml']
 
 permissions:
   contents: write
@@ -20,6 +24,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     environment:
       name: github-pages
     steps:
@@ -27,33 +32,22 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Read Steam stats
+      - name: Poll Steam stats
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
-        run: node collect.mjs
-
-      - name: Save new data
-        id: save
+          LOOP_MINUTES: ${{ github.event_name == 'schedule' && '24' || '0' }}
+          COMMIT: '1'
         run: |
-          if git diff --quiet -- site/data; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git config user.name "dbd-stats-bot"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add site/data
-            git commit -m "Stats reading $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          git config user.name "dbd-stats-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node collect.mjs
 
       - name: Prepare site
-        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
       - name: Publish site
-        if: steps.save.outputs.changed == 'true' || github.event_name != 'schedule'
         uses: actions/deploy-pages@v4
