@@ -307,7 +307,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     </div>
     <div class="card">
       <div class="card-head"><h3><i></i>Recent matches</h3></div>
-      <p class="hint">Checked every minute. Steam saves progress every few minutes during a match and adds Bloodpoints only at the end, so updates are grouped into whole matches. Length runs from the previous match's end (or from launching the game), so it includes lobby and queue.</p>
+      <p class="hint">Checked every 30 seconds. Steam saves progress every few minutes during a match and adds Bloodpoints only at the end, so updates are grouped into whole matches. Length runs from the previous match's end (or from launching the game), so it includes lobby and queue.</p>
       <div class="timeline" id="ov-matches"></div>
     </div>
   </section>
@@ -359,7 +359,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   </section>
 
   <footer>
-    <div>Data: Steam Web API (Dead by Daylight, app 381210), checked every minute by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page checks for new data every 2 minutes.</div>
+    <div>Data: Steam Web API (Dead by Daylight, app 381210), checked every 30 seconds by a GitHub Actions job. Lifetime counters cover this Steam account across all game modes. The page checks for new data every 20 seconds and updates itself.</div>
     <div>Green figures show what changed in the last 30 days of tracking, which began <b id="since">—</b>.</div>
   </footer>
 </div>
@@ -367,11 +367,17 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
 
 <script>
 (async function () {
+  // Freshest source first: the GitHub API (about 1 minute behind, and unchanged-file checks are free
+  // thanks to ETags), then raw.githubusercontent.com (up to 5 minutes behind), then the published copy.
+  const API = 'https://api.github.com/repos/Lenny669/dbd-stats/contents/site/data/';
   const RAW = 'https://raw.githubusercontent.com/Lenny669/dbd-stats/main/site/data/';
   const load = async name => {
-    const bust = '?v=' + Date.now();
-    try { const r = await fetch(RAW + name + bust, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (_) {}
-    return fetch('data/' + name + bust).then(r => r.json());
+    try {
+      const r = await fetch(API + name + '?ref=main', { cache: 'no-cache', headers: { Accept: 'application/vnd.github.raw+json' } });
+      if (r.ok) return await r.json();
+    } catch (_) {}
+    try { const r = await fetch(RAW + name + '?v=' + Date.now(), { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (_) {}
+    return fetch('data/' + name + '?v=' + Date.now()).then(r => r.json());
   };
   let SNAP, SESS, CONFIRMED = new Set();
   try {
@@ -517,11 +523,12 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // Header
   $('pname').textContent = SNAP.name || 'Lenny';
   $('synced').textContent = when(SNAP.t);
+  $('synced').title = 'Time of the last change the collector saw';
   {
     const last = SESS[SESS.length - 1];
     let status;
     if (!SNAP.ingame) status = el('span', 'state off', 'Game closed');
-    else if (last && last.live) status = el('span', 'live', `In a match · ${Math.max(1, Math.round((Date.now() - last.liveStart) / 60000))} min`);
+    else if (last && last.live) { status = el('span', 'live'); status.dataset.since = last.liveStart; status.dataset.tpl = 'In a match · {t}'; }
     else status = el('span', 'state menu', 'In menus or lobby');
     $('ingame').append(status);
   }
@@ -614,7 +621,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     what.append(el('b', null, title));
     const chips = el('div', 'chips');
     const chip = (t, cls) => chips.append(el('span', 'chip' + (cls ? ' ' + cls : ''), t));
-    if (w.live) chip('so far ' + Math.max(1, Math.round((Date.now() - w.liveStart) / 60000)) + ' min');
+    if (w.live) { const c2 = el('span', 'chip num'); c2.dataset.since = w.liveStart; c2.dataset.tpl = 'so far {t}'; chips.append(c2); }
     else if (w.len != null) chip('~' + w.len + ' min');
     if (role !== 'k') { if (c.gens) chip(fmt(c.gens, 1) + ' gens', 's'); if (c.heals) chip(fmt(c.heals, 1) + ' heals', 's'); if (w.d.SkillCheckSuccess) chip(fmt(w.d.SkillCheckSuccess) + ' skill checks'); if (w.d.UnhookOrHeal) chip(fmt(w.d.UnhookOrHeal) + ' saves', 's'); }
     if (role !== 's') { const p = POWERS.find(x => w.d[x[0]] > 0); if (p) chip(`${fmt(w.d[p[0]])} × ${p[2].toLowerCase()}`, 'k'); if (w.d.Chapter20_Slasher_Stat2) chip(fmt(w.d.Chapter20_Slasher_Stat2) + ' early hooks', 'k'); }
@@ -684,7 +691,9 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       const mins = Math.round((end - start) / 60000);
       const sk = list.reduce((a, w) => a + classify(w).kills, 0), se = list.filter(w => (w.d.Escape || 0) > 0).length;
       const bp = list.reduce((a, w) => a + (w.d.BloodwebPoints || 0), 0);
-      box.append(el('div', 'when', `${SNAP.ingame ? 'Started' : 'Played'} ${when(new Date(start).toISOString())} · ${mins >= 60 ? Math.floor(mins / 60) + ' h ' : ''}${mins % 60} min${SNAP.ingame ? ' so far' : ''}`));
+      const wh = el('div', 'when', `Played ${when(new Date(start).toISOString())} · ${mins >= 60 ? Math.floor(mins / 60) + ' h ' : ''}${mins % 60} min`);
+      if (SNAP.ingame) { wh.dataset.since = start; wh.dataset.tpl = `Started ${when(new Date(start).toISOString())} · {t} so far`; }
+      box.append(wh);
       const st = el('div', 'sess-stats');
       for (const [v, l] of [[fmt(list.filter(w => w.done).length), 'matches finished'], [fmt(sk), 'kills'], [fmt(se), 'escapes'], ['+' + big(bp), 'Bloodpoints']]) { const d = el('div'); d.append(el('b', 'num count', v), el('span', null, l)); st.append(d); }
       box.append(st);
@@ -897,9 +906,23 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     requestAnimationFrame(loop);
   })();
 
+  // Live timers tick every second without reloading
+  const dur = m => { const s = Math.max(0, Math.floor(m / 1000)), h = Math.floor(s / 3600), mi = Math.floor(s % 3600 / 60), se = s % 60; return (h ? h + ' h ' : '') + (h || mi ? mi + ' min ' : '') + (h ? '' : String(se).padStart(2, '0') + ' s'); };
+  const tick = () => document.querySelectorAll('[data-since]').forEach(e => { e.textContent = e.dataset.tpl.replace('{t}', dur(Date.now() - Number(e.dataset.since)).trim()); });
+  tick(); setInterval(tick, 1000);
+
+  // Check for new data every 20 seconds (free when nothing changed) and reload in place
+  try { const y = sessionStorage.getItem('dbd-scroll'); if (y) { sessionStorage.removeItem('dbd-scroll'); scrollTo(0, Number(y)); } } catch (_) {}
+  let checking = false;
   setInterval(async () => {
+    if (checking || document.hidden) return; checking = true;
+    try { const s = await load('snap.json'); if (s.t !== SNAP.t) { try { sessionStorage.setItem('dbd-scroll', String(scrollY)); } catch (_) {} location.reload(); } } catch (_) {}
+    checking = false;
+  }, 20 * 1000);
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
     try { const s = await load('snap.json'); if (s.t !== SNAP.t) location.reload(); } catch (_) {}
-  }, 2 * 60 * 1000);
+  });
 })();
 </script>
 </body>
