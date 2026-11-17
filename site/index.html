@@ -461,6 +461,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // matches that close on a Bloodpoints change.
   const ms = iso => new Date(iso).getTime();
   const STALL = 8 * 60000;
+  const LATE = 20 * 60000; // killer matches can go 10–15 min between uploads, so only a longer wait counts as a late score
   const matches = [];
   let cur = null;
   SESS.forEach((w, i) => {
@@ -479,7 +480,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     const silentFor = next ? ms(next.t1) - ms(w.t1) : Date.now() - ms(w.t1);
     if (ended) { cur.done = true; if (cur.delayed) cur.fine = false; matches.push(cur); cur = null; }
     else if (next && silentFor > STALL) {
-      if ((next.d.BloodwebPoints || 0) > 0 && silentFor < 3 * 3600e3) cur.delayed = true; // wait for the delayed final
+      // a later upload with Bloodpoints is this match's final; only call it "late" if the wait was long
+      if ((next.d.BloodwebPoints || 0) > 0 && silentFor < 3 * 3600e3) { if (silentFor > LATE) cur.delayed = true; }
       else { cur.dc = true; matches.push(cur); cur = null; }
     } else if (!next) {
       if (silentFor <= STALL && SNAP.ingame) { cur.live = true; cur.liveStart = ms(cur.first) - 5 * 60000; }
