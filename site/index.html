@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="build" content="b1794874083">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lenny's DBD Stats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1016,6 +1017,16 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     try { const s = await load('snap.json'); if (s.t !== SNAP.t) { try { sessionStorage.setItem('dbd-scroll', String(scrollY)); } catch (_) {} location.reload(); } } catch (_) {}
     checking = false;
   }, 20 * 1000);
+  // Pick up new versions of the page itself (the browser may otherwise keep an old copy)
+  const myBuild = (document.querySelector('meta[name=build]') || {}).content;
+  const checkBuild = async () => {
+    try {
+      const html = await fetch(location.pathname + '?build=' + Date.now(), { cache: 'no-store' }).then(r => r.text());
+      const m = html.match(/<meta name="build" content="([^"]+)">/);
+      if (m && myBuild && m[1] !== myBuild) location.replace(location.pathname + '?v=' + m[1] + location.hash);
+    } catch (_) {}
+  };
+  setInterval(() => { if (!document.hidden) checkBuild(); }, 60 * 1000);
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     try { const s = await load('snap.json'); if (s.t !== SNAP.t) location.reload(); } catch (_) {}
