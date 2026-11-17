@@ -582,7 +582,10 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   const pt30 = recentS.reduce((a, w) => a + (w.pt || 0), 0);
 
   function classify(w) {
-    const killers = POWERS.filter(p => w.d[p[0]] > 0).map(p => p[1]);
+    let killers = POWERS.filter(p => w.d[p[0]] > 0).map(p => p[1]);
+    // "Evil Within tier-ups" also ticks while playing other killers, so it only means The Shape
+    // when no other killer's power moved.
+    if (killers.length > 1) killers = killers.filter(k => k !== 'The Shape');
     const asK = killers.length > 0 || KILLER_SIGNS.some(k => w.d[k] > 0);
     const asS = SURV_SIGNS.some(k => w.d[k] > 0);
     return { killers, asK, asS, kills: (w.d.KilledCampers || 0) + (w.d.SacrificedCampers || 0), esc: w.d.Escape || 0, hatch: w.d.EscapeThroughHatch || 0, gens: w.d.GeneratorPct_float || 0, heals: w.d.HealPct_float || 0, bp: w.d.BloodwebPoints || 0 };
