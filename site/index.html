@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="b1794874083">
+<meta name="build" content="b1794875499">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lenny's DBD Stats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -461,31 +461,37 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   // Only the end-of-match upload adds Bloodpoints and pips, so readings are grouped into
   // matches that close on a Bloodpoints change.
   const ms = iso => new Date(iso).getTime();
-  const STALL = 8 * 60000;
-  const LATE = 20 * 60000; // killer matches can go 10–15 min between uploads, so only a longer wait counts as a late score
+  // Grouping rules (learned from real data):
+  //  - Steam uploads progress during a match, but the gap between uploads varies (5 to 15+ minutes).
+  //  - Only the final upload, after the scoreboard, adds Bloodpoints.
+  //  - A killer upload never belongs to the same match as a survivor upload.
+  // So a match continues until a Bloodpoints upload, a switch of role, or 15 quiet minutes (a longer gap that ends in a Bloodpoints upload is a late final score).
+  const QUIET = 15 * 60000;
+  const roleOf = d => {
+    const k = Object.keys(d).some(x => /Slasher|^KilledCampers|^SacrificedCampers|^ChainsawHit$|^TrapPickup$|^UncloakAttack$/.test(x));
+    const s = Object.keys(d).some(x => /Camper|Survivor|^Escape|^GeneratorPct|^HealPct|^UnhookOrHeal|^SkillCheck|^HitNearHook/.test(x));
+    return k && !s ? 'k' : s && !k ? 's' : k && s ? 'm' : '';
+  };
   const matches = [];
   let cur = null;
   SESS.forEach((w, i) => {
-    if (!cur) cur = { t0: w.t0, t1: w.t1, on: w.on, pt: 0, parts: 0, d: {}, first: w.t1 };
+    if (!cur) cur = { t0: w.t0, t1: w.t1, on: w.on, pt: 0, parts: 0, d: {}, first: w.t1, role: '' };
     for (const k in w.d) cur.d[k] = (cur.d[k] || 0) + w.d[k];
     cur.pt += w.pt || 0; cur.parts++; cur.t1 = w.t1;
+    cur.role = cur.role || roleOf(w.d);
     // the end time is precise when the collector had read Steam within the previous few minutes
     cur.fine = w.tp ? ms(w.t1) - ms(w.tp) <= 3 * 60000 : ms(w.t1) - ms(w.t0) <= 6 * 60000;
     const next = SESS[i + 1];
     const ended = (w.d.BloodwebPoints || 0) > 0;
-    // Mid-match uploads come every ~5 min; the final upload (with Bloodpoints) normally follows the
-    // scoreboard, but Steam sometimes receives it much later. So when uploads go quiet:
-    //  - a later upload WITH Bloodpoints is the delayed final of this match (keep it open);
-    //  - a later upload WITHOUT Bloodpoints means a new match started: this one got no final score;
-    //  - nothing yet: the result is still pending.
     const silentFor = next ? ms(next.t1) - ms(w.t1) : Date.now() - ms(w.t1);
+    const nextRole = next ? roleOf(next.d) : '';
+    const roleSwitch = next && cur.role && nextRole && nextRole !== 'm' && cur.role !== 'm' && nextRole !== cur.role;
     if (ended) { cur.done = true; if (cur.delayed) cur.fine = false; matches.push(cur); cur = null; }
-    else if (next && silentFor > STALL) {
-      // a later upload with Bloodpoints is this match's final; only call it "late" if the wait was long
-      if ((next.d.BloodwebPoints || 0) > 0 && silentFor < 3 * 3600e3) { if (silentFor > LATE) cur.delayed = true; }
+    else if (next && (roleSwitch || silentFor > QUIET)) {
+      if (!roleSwitch && (next.d.BloodwebPoints || 0) > 0 && silentFor < 3 * 3600e3) cur.delayed = true; // late final score: keep the match open
       else { cur.dc = true; matches.push(cur); cur = null; }
     } else if (!next) {
-      if (silentFor <= STALL && SNAP.ingame) { cur.live = true; cur.liveStart = ms(cur.first) - 5 * 60000; }
+      if (silentFor <= QUIET && SNAP.ingame) { cur.live = true; cur.liveStart = ms(cur.first) - 5 * 60000; }
       else if (SNAP.ingame && silentFor < 3 * 3600e3) cur.pending = true;
       else cur.dc = true;
       matches.push(cur); cur = null;
@@ -493,7 +499,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   });
   // Length: from the previous match's end in the same play session, or from launching the game.
   matches.forEach((m, i) => {
-    const prev = matches[i - 1];
+    let prev = null; for (let j = i - 1; j >= 0; j--) if (matches[j].done || matches[j].dc) { prev = matches[j]; break; }
     let start = null;
     if (prev && prev.done && ms(m.t1) - ms(prev.t1) <= 45 * 60000 && (!m.on || ms(m.on) <= ms(prev.t1))) start = prev.fine ? ms(prev.t1) : null;
     else if (m.on) start = ms(m.on);
